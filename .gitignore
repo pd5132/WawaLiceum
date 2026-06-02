@@ -5,3 +5,4 @@ Thumbs.db
 *.pdf
 *.txt
 Data/
+.DS_Store
