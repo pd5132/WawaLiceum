@@ -10,8 +10,11 @@ Filozofia projektowa: Uniwersalność i personalizacja. System odchodzi od jedno
 System integruje rozproszone dane z publicznych, legalnych rejestrów rządowych, miejskich oraz społecznych:
 - Rejestr Szkół i Placówek Oświatowych (RSPO) – baza teleadresowa, typy placówek.
 - Dane.gov.pl (CKE/OKE) – historyczne wyniki egzaminów maturalnych (poziom podstawowy i rozszerzony) oraz wskaźniki Edukacyjnej Wartości Dodanej (EWD).
-- Klimatyczna Mapa Szkół m.st. Warszawy – parametry fizyczne otoczenia (poziom hałasu, odsetek terenów zielonych wokół budynku, wielkość klas pierwszych, infrastruktura).
-- Ranking Szkół Przyjaznych (Mapa Równości) – wskaźnik otwartości i bezpieczeństwa psychicznego.
+- ewd.edu.pl / naszaszkola.edu.pl – wskaźniki EWD per szkoła (wykresy EWD maturalnych).
+- Klimatyczna Mapa Szkół m.st. Warszawy – parametry fizyczne otoczenia (poziom hałasu, odsetek terenów zielonych wokół budynku, wielkość klas pierwszych, infrastruktura) – plik PDF.
+- swiadomywybiorem.pl – oceny atmosfery, wskaźniki miękkie.
+- Ranking Perspektyw – ogólnopolski ranking szkół.
+- waszaedukacja.pl – uzupełniające dane o szkołach.
 
 Potok danych (Data Pipeline):
 Surowe zbiory danych (CSV/XLSX) są konsolidowane w repozytorium chmurowym, a następnie mapowane i ładowane za pomocą narzędzia Stitch (no-code data pipeline) do centralnej bazy danych.
