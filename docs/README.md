@@ -11,7 +11,7 @@ System integruje rozproszone dane z publicznych, legalnych rejestrów rządowych
 - Rejestr Szkół i Placówek Oświatowych (RSPO) – baza teleadresowa, typy placówek.
 - Dane.gov.pl (CKE/OKE) – historyczne wyniki egzaminów maturalnych (poziom podstawowy i rozszerzony) oraz wskaźniki Edukacyjnej Wartości Dodanej (EWD).
 - Klimatyczna Mapa Szkół m.st. Warszawy – parametry fizyczne otoczenia (poziom hałasu, odsetek terenów zielonych wokół budynku, wielkość klas pierwszych, infrastruktura).
-- Ranking Szkół Przyjaznych (Mapa Równości) – wskaźnik otwartości i bezpieczeństwa psychicznego.
+-waszaedukacja.pl - wskaźniki EWD
 
 Potok danych (Data Pipeline):
 Surowe zbiory danych (CSV/XLSX) są konsolidowane w repozytorium chmurowym, a następnie mapowane i ładowane za pomocą narzędzia Stitch (no-code data pipeline) do centralnej bazy danych.
@@ -49,8 +49,3 @@ Interfejs mobilny oparty jest na standardzie Material Design 3 i zorganizowany w
 - Ekran 4: Moja Lista – Panel układania własnej listy preferencji rekrutacyjnych (od 1 do 5) z interfejsem Drag & Drop, ułatwiający przygotowanie do rejestracji w oficjalnym systemie Vulcan.
 - Ekran 5: Porównywarka – Tabela zestawiająca wybrane szkoły kolumnowo pod kątem kryteriów twardych (progi na profile, 3-letnie EWD bloku humanistycznego/matematycznego, wyniki matur) i miękkich (hałas z mapy klimatycznej m.st. Warszawy, wielkość klas pierwszych, dostępność psychologa).
 
-## 6. Instrukcje dla Agenta AI
-Agent AI wykorzystujący ten kontekst powinien:
-1. Generować zapytania T-SQL/DAX zgodnie z podanym modelem gwiazdy i logiką algorytmu rekrutacyjnego (mnożniki, limity punktów).
-2. Wspierać rozwój kodu HTML/Tailwind dla wymienionych ekranów, dbając o spójność danych (np. przenoszenie wyniku 158.00 pkt).
-3. Analizować zapytania pod kątem optymalizacji relacyjnej i wydajności w środowisku MS SQL Server.
