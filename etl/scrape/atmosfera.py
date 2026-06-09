@@ -16,6 +16,7 @@ import re
 import json
 import time
 import hashlib
+from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -43,7 +44,7 @@ def _fetch(url: str, session: requests.Session, delay: bool = True) -> str:
     return text
 
 
-def _find_site_id(rspo: str, name: str, session: requests.Session) -> str | None:
+def _find_site_id(rspo: str, name: str, session: requests.Session) -> Optional[str]:
     q = name[:35].replace(" ", "+")
     url = f"{BASE}/wyszukaj/?q={requests.utils.quote(name[:35])}&miasto=warszawa"
     html = _fetch(url, session)
@@ -56,7 +57,7 @@ def _find_site_id(rspo: str, name: str, session: requests.Session) -> str | None
     return None
 
 
-def _parse_percent(text: str) -> float | None:
+def _parse_percent(text: str) -> Optional[float]:
     m = re.search(r"(\d+(?:[.,]\d+)?)\s*%", text)
     if m:
         return float(m.group(1).replace(",", "."))
@@ -138,8 +139,17 @@ def scrape_atmosfera(rspo_df: pd.DataFrame, engine: Engine) -> int:
             print(f"  [atm] ERROR {rspo} — {e}")
             unresolved.append({"rspo": rspo, "nazwa": name, "reason": str(e)})
 
-    df = pd.DataFrame(all_rows)
-    df.to_sql("stg_atmosfera", engine, if_exists="replace", index=False, method="multi")
+    _ATM_COLS = ["rspo_szkoly", "site_id", "nazwa_szkoly",
+                 "atmosfera_proc", "przyjemnosc_nauki_proc", "relacje_uczniow_proc",
+                 "relacja_nauczyciel_proc", "nowoczesnosc_zajec_proc", "polecanie_szkoly_proc",
+                 "jakosc_odpoczynku_proc", "liczba_ankiet",
+                 "czy_strefa_ciszy", "czy_miejsce_odpoczynku", "czy_ciche_dzwonki",
+                 "czy_rozowa_skrzyneczka", "czy_szafki_uczniow", "czy_stojak_na_rowery",
+                 "czy_teren_zielony", "czy_otwarte_boiska", "czy_sklepik_szkolny",
+                 "czy_bufet_stolowka", "czy_psycholog_na_etacie", "czy_pedagog_specjalny",
+                 "czy_winda", "czy_podjazd_dla_wozkow", "czy_monitoring"]
+    df = pd.DataFrame(all_rows) if all_rows else pd.DataFrame(columns=_ATM_COLS)
+    df.to_sql("stg_atmosfera", engine, if_exists="replace", index=False, method="multi", chunksize=500)
     print(f"[stg_atmosfera] {len(df)} rows | {len(unresolved)} unresolved")
 
     if unresolved:

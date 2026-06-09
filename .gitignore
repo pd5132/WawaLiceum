@@ -2,6 +2,7 @@
 Thumbs.db
 *.xlsx
 *.csv
+!etl/match/overrides.csv
 *.pdf
 *.txt
 Data/

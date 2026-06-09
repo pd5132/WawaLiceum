@@ -21,18 +21,20 @@ def run():
     results = []
 
     # --- Phase 2: file extracts ---
-    from etl.extract.rspo       import extract_rspo
-    from etl.extract.matury     import extract_matury
-    from etl.extract.ranking    import extract_ranking
-    from etl.extract.plan_naboru import extract_plan_naboru
-    from etl.extract.progi_pdf  import extract_progi
+    from etl.extract.rspo         import extract_rspo
+    from etl.extract.matury       import extract_matury
+    from etl.extract.ranking      import extract_ranking
+    from etl.extract.plan_naboru  import extract_plan_naboru
+    from etl.extract.progi_pdf    import extract_progi
+    from etl.extract.informator_pdf import extract_informator
 
     for name, fn in [
-        ("RSPO",        lambda: extract_rspo(engine)),
-        ("Matura",      lambda: extract_matury(engine)),
-        ("Ranking",     lambda: extract_ranking(engine)),
-        ("Plan naboru", lambda: extract_plan_naboru(engine)),
-        ("Progi PDF",   lambda: extract_progi(engine)),
+        ("RSPO",         lambda: extract_rspo(engine)),
+        ("Matura",       lambda: extract_matury(engine)),
+        ("Ranking",      lambda: extract_ranking(engine)),
+        ("Plan naboru",  lambda: extract_plan_naboru(engine)),
+        ("Progi PDF",    lambda: extract_progi(engine)),
+        ("Informator PDF", lambda: sum(extract_informator(engine))),
     ]:
         try:
             n = fn()
@@ -44,12 +46,14 @@ def run():
     # --- Phase 3: scrapers ---
     rspo_df = pd.read_sql("SELECT numer_rspo, nazwa FROM stg_rspo", engine)
 
-    from etl.scrape.ewd       import scrape_ewd
-    from etl.scrape.atmosfera import scrape_atmosfera
+    from etl.scrape.ewd              import scrape_ewd
+    from etl.scrape.atmosfera        import scrape_atmosfera
+    from etl.scrape.wikipedia_coords import scrape_wikipedia_coords
 
     for name, fn in [
-        ("EWD scraper",       lambda: scrape_ewd(rspo_df, engine)),
-        ("Atmosfera scraper", lambda: scrape_atmosfera(rspo_df, engine)),
+        ("EWD scraper",        lambda: scrape_ewd(rspo_df, engine)),
+        ("Atmosfera scraper",  lambda: scrape_atmosfera(rspo_df, engine)),
+        ("Wikipedia coords",   lambda: scrape_wikipedia_coords(rspo_df, engine)),
     ]:
         try:
             n = fn()
@@ -64,10 +68,14 @@ def run():
     try:
         ranking_df    = pd.read_sql("SELECT DISTINCT nazwa_szkoly FROM stg_ranking",    engine)
         plan_df       = pd.read_sql("SELECT DISTINCT nazwa_szkoly FROM stg_plan_naboru", engine)
+        progi_df      = pd.read_sql("SELECT DISTINCT nazwa_szkoly FROM stg_progi",       engine)
+        info_df       = pd.read_sql("SELECT DISTINCT nazwa_szkoly_informator AS nazwa_szkoly FROM stg_informator_flags", engine)
 
         sources = {
-            "ranking":    ranking_df["nazwa_szkoly"].dropna().tolist(),
+            "ranking":     ranking_df["nazwa_szkoly"].dropna().tolist(),
             "plan_naboru": plan_df["nazwa_szkoly"].dropna().tolist(),
+            "progi":       progi_df["nazwa_szkoly"].dropna().tolist(),
+            "informator":  info_df["nazwa_szkoly"].dropna().tolist(),
         }
         n = build_xref(sources, rspo_df, engine)
         results.append(("School matcher", n, "OK"))

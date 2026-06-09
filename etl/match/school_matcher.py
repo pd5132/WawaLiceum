@@ -88,7 +88,7 @@ def build_xref(sources: dict[str, list[str]], rspo_df: pd.DataFrame, engine: Eng
                 unresolved.append({"source": source, "source_name": raw_name, "normed": normed})
 
     df = pd.DataFrame(rows)
-    df.to_sql("stg_school_xref", engine, if_exists="replace", index=False, method="multi")
+    df.to_sql("stg_school_xref", engine, if_exists="replace", index=False, method="multi", chunksize=500)
     print(f"[stg_school_xref] {len(df)} matched | {len(unresolved)} unresolved")
 
     if unresolved:

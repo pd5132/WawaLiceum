@@ -11,8 +11,9 @@ MATURA_POD_FILE  = DATA_DIR / "Matury 2025 poziom podstawowy-do zaladowania.csv"
 MATURA_ROZ_FILE  = DATA_DIR / "Matury 2025 poziom rozszerzony-do zaladowania.csv"
 RANKING_FILE     = DATA_DIR / "2026 Ranking Perspektyw.xlsx"
 PLAN_NABORU_FILE = DATA_DIR / "Plan naboru DO LICEUM 16.04.26.xlsx"
-INFORMATOR_PDF   = DATA_DIR / "Informator Licea_2026.pdf"
-RANKING_PDF      = DATA_DIR / "ranking-licea-matura-2026.pdf"
+PROGI_2023_PDF   = DATA_DIR / "minimalna liczba punktów 2023.pdf"
+PROGI_2024_PDF   = DATA_DIR / "Minimalna liczba punktów 2024 r..pdf"
+PROGI_2025_PDF   = DATA_DIR / "Minimalna liczba punktów_zakwalifikowani_2025.pdf"
 
 SQL_SERVER   = r"LaptopAgi\MSSQLSERVER1"
 DATABASE     = "WawaLiceumDB"
@@ -28,7 +29,33 @@ SCRAPE_DELAY_SEC = 1.5
 
 
 def create_engine_connection() -> Engine:
-    """Connect to SQL Server using Windows auth. Tries ODBC 18 then 17."""
+    """Connect to SQL Server.
+
+    Try order:
+      1. Local Docker / Azure SQL Edge on localhost:1433 via pymssql
+         (SA password from MSSQL_SA_PASSWORD env var or hardcoded dev default)
+      2. Windows MSSQLSERVER1 via pyodbc ODBC 18 / 17 (Windows box)
+    """
+    import os
+
+    # --- Option 1: local Docker (pymssql, no ODBC driver required) ---
+    sa_pass = os.environ.get("MSSQL_SA_PASSWORD", "Admini$tr@tor1208")
+    try:
+        import pymssql  # noqa: F401
+        from urllib.parse import quote_plus
+        conn_str = (
+            f"mssql+pymssql://SA:{quote_plus(sa_pass)}"
+            f"@localhost:1433/{DATABASE}"
+        )
+        engine = create_engine(conn_str)
+        with engine.connect():
+            pass
+        print(f"[DB] Connected via pymssql → localhost:1433/{DATABASE}")
+        return engine
+    except Exception:
+        pass
+
+    # --- Option 2: Windows SQL Server via pyodbc ---
     drivers = ["ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server"]
     for driver in drivers:
         conn_str = (
@@ -41,10 +68,13 @@ def create_engine_connection() -> Engine:
             engine = create_engine(conn_str, fast_executemany=True)
             with engine.connect():
                 pass
+            print(f"[DB] Connected via pyodbc → {SQL_SERVER}/{DATABASE}")
             return engine
         except Exception:
             continue
+
     raise RuntimeError(
         "Cannot connect to SQL Server. "
-        "Ensure ODBC Driver 17 or 18 is installed and the server is running."
+        "On Mac: ensure Docker container 'azuresqledge' is running. "
+        "On Windows: ensure ODBC Driver 17 or 18 is installed."
     )

@@ -15,6 +15,6 @@ def clean_col(col: str) -> str:
 def extract_rspo(engine: Engine) -> int:
     df = pd.read_excel(RSPO_FILE, dtype=str)
     df.columns = [clean_col(c) for c in df.columns]
-    df.to_sql("stg_rspo", engine, if_exists="replace", index=False, method="multi")
+    df.to_sql("stg_rspo", engine, if_exists="replace", index=False, method="multi", chunksize=500)
     print(f"[stg_rspo] {len(df)} rows loaded")
     return len(df)

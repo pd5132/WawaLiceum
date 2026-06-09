@@ -1,10 +1,16 @@
 -- WawaLiceum Data Warehouse — star schema
--- Fixed from docs/db/SkryptDDL.sql:
---   * USE WawaLiceumDB (was WawaLiceum — wrong DB name)
---   * id_atmosfera FK removed from Fakt_Rekrutacja_Wyniki (atmosphere is
---     school-level; link via Wymiar_Szkola, not per-recruitment-fact)
---   * wspolrzedne_*, url_facebook, url_instagram kept nullable — no source yet
---   * Staging tables (stg_*) are auto-created by Python; not in this script
+-- Changes from original docs/db/SkryptDDL.sql:
+--   * USE WawaLiceumDB (was WawaLiceum)
+--   * Wymiar_Profil removed — plan naboru has no individual class symbols;
+--     class info stored as degenerate dims in Fakt_Rekrutacja_Wyniki
+--   * Fakt_Rekrutacja_Wyniki rebuilt: sourced from progi PDFs (2023-2025),
+--     symbol/nazwa/typ as inline columns, prog_punktowy_max added
+--   * Fakt_Plan_Naboru added: plan naboru 2026 at (school, typ) aggregate grain
+--   * Wymiar_Czas covers 2023-2026 (populated from stg_progi + stg_ranking + stg_matura)
+--   * poziom_halasu_otoczenia removed (no data source)
+--   * wspolrzedne_lat/long from Wikipedia geotag scraper (etl/scrape/wikipedia_coords.py)
+--   * url_facebook, url_instagram removed (no source)
+--   * Staging tables auto-created by Python; not in this script
 
 USE [WawaLiceumDB];
 GO
@@ -13,14 +19,15 @@ GO
 -- DROP (reverse FK order)
 -- ============================================================
 DROP TABLE IF EXISTS dbo.Fakt_Matura_EWD;
+DROP TABLE IF EXISTS dbo.Wymiar_Profil;
 DROP TABLE IF EXISTS dbo.Fakt_Matura_Statystyki_Szczegolowe;
 DROP TABLE IF EXISTS dbo.Fakt_Rekrutacja_Wyniki;
+DROP TABLE IF EXISTS dbo.Fakt_Plan_Naboru;
 DROP TABLE IF EXISTS dbo.Fakt_Ranking_Perspektywy;
 DROP TABLE IF EXISTS dbo.Mostek_Szkola_Inicjatywy;
 DROP TABLE IF EXISTS dbo.Wymiar_Inicjatywy_Zewnetrzne;
 DROP TABLE IF EXISTS dbo.Wymiar_Typ_EWD;
 DROP TABLE IF EXISTS dbo.Wymiar_Przedmiot_Maturalny;
-DROP TABLE IF EXISTS dbo.Wymiar_Profil;
 DROP TABLE IF EXISTS dbo.Wymiar_Atmosfera;
 DROP TABLE IF EXISTS dbo.Wymiar_Szkola;
 DROP TABLE IF EXISTS dbo.Wymiar_Czas;
@@ -56,10 +63,8 @@ CREATE TABLE dbo.Wymiar_Szkola (
     telefon                 varchar(30)   NULL,
     email                   varchar(100)  NULL,
     strona_www              varchar(255)  NULL,
-    url_facebook            varchar(255)  NULL,   -- future enrichment, no source yet
-    url_instagram           varchar(255)  NULL,   -- future enrichment, no source yet
-    wspolrzedne_lat         decimal(9,6)  NULL,   -- future enrichment, no source yet
-    wspolrzedne_long        decimal(9,6)  NULL,   -- future enrichment, no source yet
+    wspolrzedne_lat         decimal(9,6)  NULL,   -- from Wikipedia geotag (etl/scrape/wikipedia_coords.py)
+    wspolrzedne_long        decimal(9,6)  NULL,   -- from Wikipedia geotag
     CONSTRAINT PK_Wymiar_Szkola PRIMARY KEY (id_szkoly_rspo)
 );
 
@@ -67,7 +72,6 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
     id_atmosfera                int          IDENTITY(1,1) NOT NULL,
     id_szkoly_rspo              int          NOT NULL,
     -- Infrastructure flags (from swiadomiewybieram.pl)
-    poziom_halasu_otoczenia     nvarchar(20) NULL,
     czy_strefa_ciszy            bit          NOT NULL DEFAULT 0,
     czy_miejsce_odpoczynku      bit          NOT NULL DEFAULT 0,
     czy_ciche_dzwonki           bit          NOT NULL DEFAULT 0,
@@ -105,21 +109,14 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
     jakosc_odpoczynku_proc      decimal(5,2) NULL,
     czas_nauki_po_lekcjach_min  int          NULL,
     liczba_ankiet               int          NULL,
-    CONSTRAINT PK_Wymiar_Atmosfera PRIMARY KEY (id_atmosfera)
-);
-
-CREATE TABLE dbo.Wymiar_Profil (
-    id_profilu       int           IDENTITY(1,1) NOT NULL,
-    symbol_oddzialu  nvarchar(50)  NOT NULL,
-    nazwa_oddzialu   nvarchar(255) NOT NULL,
-    typ_oddzialu     char(2)       NOT NULL,   -- O=ogólny, D=dwujęzyczny, MS=mistrz.sport.
-    CONSTRAINT PK_Wymiar_Profil PRIMARY KEY (id_profilu)
+    CONSTRAINT PK_Wymiar_Atmosfera PRIMARY KEY (id_atmosfera),
+    CONSTRAINT UQ_Atmosfera_Szkola UNIQUE (id_szkoly_rspo)
 );
 
 CREATE TABLE dbo.Wymiar_Przedmiot_Maturalny (
-    id_przedmiotu   int          IDENTITY(1,1) NOT NULL,
+    id_przedmiotu    int           IDENTITY(1,1) NOT NULL,
     nazwa_przedmiotu nvarchar(100) NOT NULL,
-    poziom          nvarchar(50)  NOT NULL,    -- podstawowy / rozszerzony
+    poziom           nvarchar(50)  NOT NULL,    -- podstawowy / rozszerzony
     CONSTRAINT PK_Wymiar_Przedmiot PRIMARY KEY (id_przedmiotu),
     CONSTRAINT UQ_Przedmiot UNIQUE (nazwa_przedmiotu, poziom)
 );
@@ -154,25 +151,43 @@ CREATE TABLE dbo.Mostek_Szkola_Inicjatywy (
 -- ============================================================
 
 CREATE TABLE dbo.Fakt_Ranking_Perspektywy (
-    id_rankingu        int          IDENTITY(1,1) NOT NULL,
-    id_czas            int          NOT NULL,
-    id_szkoly_rspo     int          NOT NULL,
-    pozycja_w_rankingu int          NULL,
-    wskaznik_sumaryczny decimal(5,2) NULL,
+    id_rankingu         int           IDENTITY(1,1) NOT NULL,
+    id_czas             int           NOT NULL,
+    id_szkoly_rspo      int           NOT NULL,
+    pozycja_w_rankingu  int           NULL,
+    wskaznik_sumaryczny decimal(5,2)  NULL,
     CONSTRAINT PK_Fakt_Ranking_Perspektywy PRIMARY KEY (id_rankingu),
     CONSTRAINT UQ_Ranking UNIQUE (id_czas, id_szkoly_rspo)
 );
 
+-- Historical recruitment thresholds — one row per (school, class, year).
+-- Sourced from progi PDFs 2023-2025.  Class info stored as degenerate dims
+-- because Wymiar_Profil cannot exist at this grain (plan naboru is aggregate).
 CREATE TABLE dbo.Fakt_Rekrutacja_Wyniki (
     id_fakt            int           IDENTITY(1,1) NOT NULL,
-    id_profilu         int           NOT NULL,
-    id_czas            int           NOT NULL,
     id_szkoly_rspo     int           NOT NULL,
+    id_czas            int           NOT NULL,
+    symbol_oddzialu    nvarchar(50)  NOT NULL,   -- e.g. "1A", "1Ah"
+    nazwa_oddzialu     nvarchar(255) NOT NULL,   -- e.g. "[O] geogr-hist-ang (ang-hisz*)"
+    typ_oddzialu       char(2)       NOT NULL,   -- O / D / MS
     prog_punktowy_min  decimal(5,2)  NULL,
-    liczba_oddzialow   int           NOT NULL,
-    liczba_miejsc      int           NOT NULL,
-    liczba_uczniow_ogolem int        NULL,
-    CONSTRAINT PK_Fakt_Rekrutacja_Wyniki PRIMARY KEY (id_fakt)
+    prog_punktowy_max  decimal(5,2)  NULL,       -- available in 2023 only
+    CONSTRAINT PK_Fakt_Rekrutacja_Wyniki PRIMARY KEY (id_fakt),
+    CONSTRAINT UQ_Rekrutacja UNIQUE (id_szkoly_rspo, id_czas, symbol_oddzialu)
+);
+
+-- 2026 plan naboru — aggregate seat counts per school and class type.
+-- No individual class symbols available in source data.
+CREATE TABLE dbo.Fakt_Plan_Naboru (
+    id_plan            int          IDENTITY(1,1) NOT NULL,
+    id_szkoly_rspo     int          NOT NULL,
+    id_czas            int          NOT NULL,
+    typ_oddzialu       char(2)      NOT NULL,   -- O / D / MS
+    jezyk_dwujezyczny  nvarchar(50) NULL,       -- NULL for O-type classes
+    liczba_oddzialow   int          NOT NULL,
+    liczba_miejsc      int          NOT NULL,
+    CONSTRAINT PK_Fakt_Plan_Naboru PRIMARY KEY (id_plan),
+    CONSTRAINT UQ_Plan UNIQUE (id_szkoly_rspo, id_czas, typ_oddzialu, jezyk_dwujezyczny)
 );
 
 CREATE TABLE dbo.Fakt_Matura_Statystyki_Szczegolowe (
@@ -202,6 +217,8 @@ CREATE TABLE dbo.Fakt_Matura_EWD (
     egzamin_oszacowanie_punktowe   decimal(5,2) NULL,
     egzamin_gorna_granica_ufnosci  decimal(5,2) NULL,
     egzamin_dolna_granica_ufnosci  decimal(5,2) NULL,
+    -- Quadrant label from EWD chart (set after insert, based on EWD=0 and mean exam per indicator×year)
+    typ_szkoly_ewd                 nvarchar(60) NULL,
     CONSTRAINT PK_Fakt_Matura_EWD PRIMARY KEY (id_fakt_ewd),
     CONSTRAINT UQ_EWD UNIQUE (id_szkoly_rspo, id_czas, id_typu_ewd)
 );
@@ -218,9 +235,11 @@ ALTER TABLE dbo.Mostek_Szkola_Inicjatywy  ADD CONSTRAINT FK_Mostek_Inicjatywa   
 ALTER TABLE dbo.Fakt_Ranking_Perspektywy  ADD CONSTRAINT FK_Ranking_Czas          FOREIGN KEY (id_czas)        REFERENCES dbo.Wymiar_Czas (id_czas);
 ALTER TABLE dbo.Fakt_Ranking_Perspektywy  ADD CONSTRAINT FK_Ranking_Szkola        FOREIGN KEY (id_szkoly_rspo) REFERENCES dbo.Wymiar_Szkola (id_szkoly_rspo);
 
-ALTER TABLE dbo.Fakt_Rekrutacja_Wyniki    ADD CONSTRAINT FK_Rekrutacja_Profil      FOREIGN KEY (id_profilu)     REFERENCES dbo.Wymiar_Profil (id_profilu);
 ALTER TABLE dbo.Fakt_Rekrutacja_Wyniki    ADD CONSTRAINT FK_Rekrutacja_Czas        FOREIGN KEY (id_czas)        REFERENCES dbo.Wymiar_Czas (id_czas);
 ALTER TABLE dbo.Fakt_Rekrutacja_Wyniki    ADD CONSTRAINT FK_Rekrutacja_Szkola      FOREIGN KEY (id_szkoly_rspo) REFERENCES dbo.Wymiar_Szkola (id_szkoly_rspo);
+
+ALTER TABLE dbo.Fakt_Plan_Naboru          ADD CONSTRAINT FK_Plan_Czas              FOREIGN KEY (id_czas)        REFERENCES dbo.Wymiar_Czas (id_czas);
+ALTER TABLE dbo.Fakt_Plan_Naboru          ADD CONSTRAINT FK_Plan_Szkola            FOREIGN KEY (id_szkoly_rspo) REFERENCES dbo.Wymiar_Szkola (id_szkoly_rspo);
 
 ALTER TABLE dbo.Fakt_Matura_Statystyki_Szczegolowe ADD CONSTRAINT FK_Szczegoly_Szkola    FOREIGN KEY (id_szkoly_rspo) REFERENCES dbo.Wymiar_Szkola (id_szkoly_rspo);
 ALTER TABLE dbo.Fakt_Matura_Statystyki_Szczegolowe ADD CONSTRAINT FK_Szczegoly_Czas      FOREIGN KEY (id_czas)        REFERENCES dbo.Wymiar_Czas (id_czas);

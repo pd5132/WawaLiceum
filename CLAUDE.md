@@ -32,19 +32,36 @@ Currently in design/planning phase: DB schema done, UX mockups done, no applicat
 
 ## Database Schema (Star Schema)
 
-```
-Fakt_Rekrutacja_Wyniki (id_fakt PK, id_szkoly FK, id_profilu FK, id_atmosfera FK, id_czas FK,
-  prog_punktowy, ewd_humanistyczne_proc, wynik_matura_polski_proc, wynik_matura_wos_proc,
-  czas_dojazdu_min)
+4 fact tables + 1 bridge + 6 dimension tables. `Wymiar_Profil` removed — plan naboru is aggregate
+(no individual class symbols); class info stored as degenerate dims in `Fakt_Rekrutacja_Wyniki`.
 
-Wymiar_Szkola    (id_szkoly PK/RSPO, nazwa_liceum, adres, dzielnica, typ_placowki)
-Wymiar_Atmosfera (id_atmosfera PK, id_szkoly FK, ranking_rownosci_poz, etat_psychologa_100os,
-  liczebnosc_klas_srednia, poziom_halasu_otoczenia, tereny_zielone_procent, czy_cisza_przerwa)
-Wymiar_Profil    (id_profilu PK, nazwa_klasy, rozszerzenia, czy_lacina, patronat_uczelni)
-Wymiar_Czas      (id_czas PK, rok_szkolny, czy_reforma_rocznik)
+```
+Fakt_Rekrutacja_Wyniki  (id_fakt PK, id_szkoly_rspo FK, id_czas FK,
+  symbol_oddzialu, nazwa_oddzialu, typ_oddzialu,   ← degenerate dims
+  prog_punktowy_min, prog_punktowy_max)             ← from progi PDFs 2023-2025
+
+Fakt_Plan_Naboru        (id_plan PK, id_szkoly_rspo FK, id_czas FK,
+  typ_oddzialu, jezyk_dwujezyczny, liczba_oddzialow, liczba_miejsc)  ← plan naboru 2026
+
+Fakt_Matura_EWD         (id_fakt_ewd PK, id_szkoly_rspo FK, id_czas FK, id_typu_ewd FK,
+  ewd_oszacowanie_punktowe, ewd_upper/lower, egzamin_oszacowanie/upper/lower)
+
+Fakt_Matura_Statystyki_Szczegolowe (id_fakt_matura PK, id_szkoly_rspo FK, id_czas FK,
+  id_przedmiotu FK, liczba_zdajacych, zdawalnosc_proc, sredni_wynik_proc, ...)
+
+Fakt_Ranking_Perspektywy (id_rankingu PK, id_czas FK, id_szkoly_rspo FK,
+  pozycja_w_rankingu, wskaznik_sumaryczny)
+
+Wymiar_Szkola    (id_szkoly_rspo PK/RSPO, nazwa_liceum, adres, dzielnica, organ_prowadzacy, ...)
+Wymiar_Atmosfera (id_atmosfera PK, id_szkoly_rspo FK, 27× czy_* bit flags, 7× *_proc ratings)
+Wymiar_Czas      (id_czas PK, rok_kalendarzowy, rok_szkolny)  ← covers 2023-2026
+Wymiar_Przedmiot_Maturalny (id_przedmiotu PK, nazwa_przedmiotu, poziom)
+Wymiar_Typ_EWD   (id_typu_ewd PK, nazwa_egzaminu, rodzaj_zapisu)
+Wymiar_Inicjatywy_Zewnetrzne (id_inicjatywy PK, nazwa_elementu, typ_inicjatywy)
+Mostek_Szkola_Inicjatywy (id_szkoly_rspo FK, id_inicjatywy FK)  ← bridge
 ```
 
-Wide matura data from OKE normalized via `UNPIVOT` + subject lookup table.
+Matura CSV data is already long-format (one row per school × subject × level).
 
 ## Recruitment Point Algorithm (max 200 pts)
 

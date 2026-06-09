@@ -23,7 +23,7 @@ Surowe zbiory danych (CSV/XLSX) są konsolidowane w repozytorium chmurowym, a na
 Silnik bazy danych implementuje architekturę Star Schema z centralną tabelą faktów i czterema tabelami wymiarów:
 
 - Wymiar_Szkola (id_szkoly [PK/RSPO], nazwa_liceum, adres, dzielnica, typ_placowki)
-- Wymiar_Atmosfera (id_atmosfera [PK], id_szkoly [FK], ranking_rownosci_poz, etat_psychologa_100os, liczebnosc_klas_srednia, poziom_halasu_otoczenia, tereny_zielone_procent, czy_cisza_przerwa)
+- Wymiar_Atmosfera (id_atmosfera [PK], id_szkoly [FK], ranking_rownosci_poz, etat_psychologa_100os, liczebnosc_klas_srednia, tereny_zielone_procent, czy_cisza_przerwa)
 - Wymiar_Profil (id_profilu [PK], nazwa_klasy, rozszerzenia, czy_lacina, patronat_uczelni)
 - Wymiar_Czas (id_czas [PK], rok_szkolny, czy_reforma_rocznik)
 - Fakt_Rekrutacja_Wyniki (id_fakt [PK], id_szkoly [FK], id_profilu [FK], id_atmosfera [FK], id_czas [FK], prog_punktowy, ewd_humanistyczne_proc, wynik_matura_polski_proc, wynik_matura_wos_proc, czas_dojazdu_min)

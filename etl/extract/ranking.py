@@ -23,6 +23,6 @@ def extract_ranking(engine: Engine) -> int:
                    var_name="rok_rankingu", value_name="pozycja")
     long["rok_rankingu"] = long["rok_rankingu"].astype(int)
     long = long.dropna(subset=["pozycja"])
-    long.to_sql("stg_ranking", engine, if_exists="replace", index=False, method="multi")
+    long.to_sql("stg_ranking", engine, if_exists="replace", index=False, method="multi", chunksize=500)
     print(f"[stg_ranking] {len(long)} rows loaded")
     return len(long)

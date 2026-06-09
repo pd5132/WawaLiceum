@@ -27,6 +27,6 @@ def extract_matury(engine: Engine) -> int:
     pod = _read(MATURA_POD_FILE, "podstawowy")
     roz = _read(MATURA_ROZ_FILE, "rozszerzony")
     df = pd.concat([pod, roz], ignore_index=True)
-    df.to_sql("stg_matura", engine, if_exists="replace", index=False, method="multi")
+    df.to_sql("stg_matura", engine, if_exists="replace", index=False, method="multi", chunksize=500)
     print(f"[stg_matura] {len(df)} rows loaded ({len(pod)} pod + {len(roz)} roz)")
     return len(df)
