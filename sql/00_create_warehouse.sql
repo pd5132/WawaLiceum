@@ -80,6 +80,7 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
     czy_stojak_na_rowery        bit          NOT NULL DEFAULT 0,
     czy_teren_zielony           bit          NOT NULL DEFAULT 0,
     czy_otwarte_boiska          bit          NOT NULL DEFAULT 0,
+    czy_wifi_dla_uczniow        bit          NOT NULL DEFAULT 0,
     czy_sklepik_szkolny         bit          NOT NULL DEFAULT 0,
     czy_bufet_stolowka          bit          NOT NULL DEFAULT 0,
     czy_posilki_wegetarianskie  bit          NOT NULL DEFAULT 0,
@@ -109,6 +110,13 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
     jakosc_odpoczynku_proc      decimal(5,2) NULL,
     czas_nauki_po_lekcjach_min  int          NULL,
     liczba_ankiet               int          NULL,
+    -- Aktywne metody nauczania (z Informatora PDF)
+    czy_metoda_projektu             bit          NOT NULL DEFAULT 0,
+    czy_gry_edukacyjne              bit          NOT NULL DEFAULT 0,
+    czy_ai_nowe_technologie         bit          NOT NULL DEFAULT 0,
+    czy_mapy_mysli                  bit          NOT NULL DEFAULT 0,
+    czy_edukacja_antydyskryminacyjna bit         NOT NULL DEFAULT 0,
+    czy_metoda_steam                bit          NOT NULL DEFAULT 0,
     CONSTRAINT PK_Wymiar_Atmosfera PRIMARY KEY (id_atmosfera),
     CONSTRAINT UQ_Atmosfera_Szkola UNIQUE (id_szkoly_rspo)
 );

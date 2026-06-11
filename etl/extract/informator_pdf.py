@@ -33,7 +33,14 @@ XOBJ_FLAG: dict[str, str] = {
     "X267": "czy_stojak_na_rowery",
     "X268": "czy_teren_zielony",
     "X301": "czy_otwarte_boiska",
-    # X314: rare (~30 schools), unknown feature — excluded
+    "X314": "czy_wifi_dla_uczniow",
+    # Aktywne metody nauczania
+    "X278": "czy_metoda_projektu",
+    "X279": "czy_gry_edukacyjne",
+    "X280": "czy_ai_nowe_technologie",
+    "X281": "czy_mapy_mysli",
+    "X361": "czy_edukacja_antydyskryminacyjna",
+    "X373": "czy_metoda_steam",
     # Posiłki
     "X284": "czy_sklepik_szkolny",
     "X285": "czy_bufet_stolowka",
@@ -60,7 +67,7 @@ XOBJ_FLAG: dict[str, str] = {
 ALL_FLAGS = [
     "czy_strefa_ciszy", "czy_miejsce_odpoczynku", "czy_ciche_dzwonki",
     "czy_rozowa_skrzyneczka", "czy_szafki_uczniow", "czy_stojak_na_rowery",
-    "czy_teren_zielony", "czy_otwarte_boiska",
+    "czy_teren_zielony", "czy_otwarte_boiska", "czy_wifi_dla_uczniow",
     "czy_sklepik_szkolny", "czy_bufet_stolowka",
     "czy_posilki_wegetarianskie", "czy_posilki_weganskie", "czy_zrodlo_wody_pitnej",
     "czy_monitoring", "czy_wejscie_na_karty", "czy_rejestracja_gosci",
@@ -68,6 +75,8 @@ ALL_FLAGS = [
     "czy_rzecznik_praw_ucznia", "czy_pielegniarka",
     "czy_psycholog_na_etacie", "czy_pedagog_specjalny", "czy_osoba_zaufania",
     "czy_zajecia_tus", "czy_rewalidacja",
+    "czy_metoda_projektu", "czy_gry_edukacyjne", "czy_ai_nowe_technologie",
+    "czy_mapy_mysli", "czy_edukacja_antydyskryminacyjna", "czy_metoda_steam",
 ]
 
 # ── Text-based flags from section text content ───────────────────────────────

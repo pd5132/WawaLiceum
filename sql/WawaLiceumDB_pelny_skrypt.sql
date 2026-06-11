@@ -94,6 +94,7 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
     czy_stojak_na_rowery        bit          NOT NULL DEFAULT 0,
     czy_teren_zielony           bit          NOT NULL DEFAULT 0,
     czy_otwarte_boiska          bit          NOT NULL DEFAULT 0,
+    czy_wifi_dla_uczniow        bit          NOT NULL DEFAULT 0,
     czy_sklepik_szkolny         bit          NOT NULL DEFAULT 0,
     czy_bufet_stolowka          bit          NOT NULL DEFAULT 0,
     czy_posilki_wegetarianskie  bit          NOT NULL DEFAULT 0,
@@ -123,6 +124,13 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
     jakosc_odpoczynku_proc      decimal(5,2) NULL,
     czas_nauki_po_lekcjach_min  int          NULL,
     liczba_ankiet               int          NULL,
+    -- Aktywne metody nauczania (z Informatora PDF)
+    czy_metoda_projektu             bit          NOT NULL DEFAULT 0,
+    czy_gry_edukacyjne              bit          NOT NULL DEFAULT 0,
+    czy_ai_nowe_technologie         bit          NOT NULL DEFAULT 0,
+    czy_mapy_mysli                  bit          NOT NULL DEFAULT 0,
+    czy_edukacja_antydyskryminacyjna bit         NOT NULL DEFAULT 0,
+    czy_metoda_steam                bit          NOT NULL DEFAULT 0,
     CONSTRAINT PK_Wymiar_Atmosfera PRIMARY KEY (id_atmosfera),
     CONSTRAINT UQ_Atmosfera_Szkola UNIQUE (id_szkoly_rspo)
 );
@@ -398,14 +406,16 @@ INSERT INTO dbo.Wymiar_Atmosfera (
     jakosc_odpoczynku_proc, liczba_ankiet,
     czy_strefa_ciszy, czy_miejsce_odpoczynku, czy_ciche_dzwonki,
     czy_rozowa_skrzyneczka, czy_szafki_uczniow, czy_stojak_na_rowery,
-    czy_teren_zielony, czy_otwarte_boiska, czy_sklepik_szkolny,
+    czy_teren_zielony, czy_otwarte_boiska, czy_wifi_dla_uczniow, czy_sklepik_szkolny,
     czy_bufet_stolowka, czy_psycholog_na_etacie, czy_pedagog_specjalny,
     czy_winda, czy_podjazd_dla_wozkow, czy_monitoring,
     czy_posilki_wegetarianskie, czy_posilki_weganskie,
     czy_zrodlo_wody_pitnej, czy_wejscie_na_karty,
     czy_rejestracja_gosci, czy_rzecznik_praw_ucznia,
     czy_pielegniarka, czy_osoba_zaufania, czy_zajecia_tus,
-    czy_rewalidacja, czy_petla_indukcyjna, czy_schodolaz
+    czy_rewalidacja, czy_petla_indukcyjna, czy_schodolaz,
+    czy_metoda_projektu, czy_gry_edukacyjne, czy_ai_nowe_technologie,
+    czy_mapy_mysli, czy_edukacja_antydyskryminacyjna, czy_metoda_steam
 )
 SELECT
     TRY_CAST(rspo_szkoly AS int),
@@ -425,6 +435,7 @@ SELECT
     ISNULL(TRY_CAST(czy_stojak_na_rowery      AS bit), 0),
     ISNULL(TRY_CAST(czy_teren_zielony         AS bit), 0),
     ISNULL(TRY_CAST(czy_otwarte_boiska        AS bit), 0),
+    0,  -- czy_wifi_dla_uczniow: only from Informator overlay
     ISNULL(TRY_CAST(czy_sklepik_szkolny       AS bit), 0),
     ISNULL(TRY_CAST(czy_bufet_stolowka        AS bit), 0),
     ISNULL(TRY_CAST(czy_psycholog_na_etacie   AS bit), 0),
@@ -432,7 +443,8 @@ SELECT
     ISNULL(TRY_CAST(czy_winda                 AS bit), 0),
     ISNULL(TRY_CAST(czy_podjazd_dla_wozkow    AS bit), 0),
     ISNULL(TRY_CAST(czy_monitoring            AS bit), 0),
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  -- remaining flags default 0
+    0, 0, 0, 0, 0, 0  -- active methods: set via Informator overlay
 FROM dbo.stg_atmosfera;
 
 -- Wstaw puste wiersze dla szkol z Informatora bez danych ze swiadomiewybieram
@@ -453,6 +465,7 @@ UPDATE a SET
     a.czy_stojak_na_rowery          = CASE WHEN f.czy_stojak_na_rowery         = 1 THEN 1 ELSE a.czy_stojak_na_rowery          END,
     a.czy_teren_zielony             = CASE WHEN f.czy_teren_zielony            = 1 THEN 1 ELSE a.czy_teren_zielony             END,
     a.czy_otwarte_boiska            = CASE WHEN f.czy_otwarte_boiska           = 1 THEN 1 ELSE a.czy_otwarte_boiska            END,
+    a.czy_wifi_dla_uczniow          = CASE WHEN f.czy_wifi_dla_uczniow         = 1 THEN 1 ELSE a.czy_wifi_dla_uczniow          END,
     a.czy_sklepik_szkolny           = CASE WHEN f.czy_sklepik_szkolny          = 1 THEN 1 ELSE a.czy_sklepik_szkolny           END,
     a.czy_bufet_stolowka            = CASE WHEN f.czy_bufet_stolowka           = 1 THEN 1 ELSE a.czy_bufet_stolowka            END,
     a.czy_posilki_wegetarianskie    = CASE WHEN f.czy_posilki_wegetarianskie   = 1 THEN 1 ELSE a.czy_posilki_wegetarianskie    END,
@@ -471,7 +484,14 @@ UPDATE a SET
     a.czy_pedagog_specjalny         = CASE WHEN f.czy_pedagog_specjalny        = 1 THEN 1 ELSE a.czy_pedagog_specjalny         END,
     a.czy_osoba_zaufania            = CASE WHEN f.czy_osoba_zaufania           = 1 THEN 1 ELSE a.czy_osoba_zaufania            END,
     a.czy_zajecia_tus               = CASE WHEN f.czy_zajecia_tus              = 1 THEN 1 ELSE a.czy_zajecia_tus               END,
-    a.czy_rewalidacja               = CASE WHEN f.czy_rewalidacja              = 1 THEN 1 ELSE a.czy_rewalidacja               END
+    a.czy_rewalidacja               = CASE WHEN f.czy_rewalidacja              = 1 THEN 1 ELSE a.czy_rewalidacja               END,
+    a.czy_wifi_dla_uczniow          = CASE WHEN f.czy_wifi_dla_uczniow         = 1 THEN 1 ELSE a.czy_wifi_dla_uczniow          END,
+    a.czy_metoda_projektu           = CASE WHEN f.czy_metoda_projektu          = 1 THEN 1 ELSE a.czy_metoda_projektu           END,
+    a.czy_gry_edukacyjne            = CASE WHEN f.czy_gry_edukacyjne           = 1 THEN 1 ELSE a.czy_gry_edukacyjne            END,
+    a.czy_ai_nowe_technologie       = CASE WHEN f.czy_ai_nowe_technologie      = 1 THEN 1 ELSE a.czy_ai_nowe_technologie       END,
+    a.czy_mapy_mysli                = CASE WHEN f.czy_mapy_mysli               = 1 THEN 1 ELSE a.czy_mapy_mysli                END,
+    a.czy_edukacja_antydyskryminacyjna = CASE WHEN f.czy_edukacja_antydyskryminacyjna = 1 THEN 1 ELSE a.czy_edukacja_antydyskryminacyjna END,
+    a.czy_metoda_steam              = CASE WHEN f.czy_metoda_steam             = 1 THEN 1 ELSE a.czy_metoda_steam              END
 FROM dbo.Wymiar_Atmosfera a
 JOIN dbo.stg_school_xref x ON x.id_szkoly_rspo = a.id_szkoly_rspo AND x.source = 'informator'
 JOIN dbo.stg_informator_flags f ON f.nazwa_szkoly_informator = x.source_name;
