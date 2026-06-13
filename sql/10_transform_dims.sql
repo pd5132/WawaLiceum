@@ -124,7 +124,8 @@ INSERT INTO dbo.Wymiar_Atmosfera (
     id_szkoly_rspo,
     atmosfera_proc, przyjemnosc_nauki_proc, relacje_uczniow_proc,
     relacja_nauczyciel_proc, nowoczesnosc_zajec_proc, polecanie_szkoly_proc,
-    jakosc_odpoczynku_proc, liczba_ankiet,
+    jakosc_odpoczynku_proc, czas_nauki_po_lekcjach_min, liczba_ankiet,
+    liczba_uczniow,
     czy_strefa_ciszy, czy_miejsce_odpoczynku, czy_ciche_dzwonki,
     czy_rozowa_skrzyneczka, czy_szafki_uczniow, czy_stojak_na_rowery,
     czy_teren_zielony, czy_otwarte_boiska, czy_wifi_dla_uczniow, czy_sklepik_szkolny,
@@ -136,7 +137,8 @@ INSERT INTO dbo.Wymiar_Atmosfera (
     czy_pielegniarka, czy_osoba_zaufania, czy_zajecia_tus,
     czy_rewalidacja, czy_petla_indukcyjna, czy_schodolaz,
     czy_metoda_projektu, czy_gry_edukacyjne, czy_ai_nowe_technologie,
-    czy_mapy_mysli, czy_edukacja_antydyskryminacyjna, czy_metoda_steam
+    czy_mapy_mysli, czy_edukacja_antydyskryminacyjna, czy_metoda_steam,
+    czy_drukarka_dla_uczniow, czy_przystanek_mpk
 )
 SELECT
     TRY_CAST(rspo_szkoly AS int),
@@ -147,7 +149,9 @@ SELECT
     TRY_CAST(nowoczesnosc_zajec_proc  AS decimal(5,2)),
     TRY_CAST(polecanie_szkoly_proc    AS decimal(5,2)),
     TRY_CAST(jakosc_odpoczynku_proc   AS decimal(5,2)),
+    TRY_CAST(czas_nauki_po_lekcjach_min AS int),
     TRY_CAST(liczba_ankiet            AS int),
+    TRY_CAST(liczba_uczniow           AS int),
     ISNULL(TRY_CAST(czy_strefa_ciszy          AS bit), 0),
     ISNULL(TRY_CAST(czy_miejsce_odpoczynku    AS bit), 0),
     ISNULL(TRY_CAST(czy_ciche_dzwonki        AS bit), 0),
@@ -165,7 +169,9 @@ SELECT
     ISNULL(TRY_CAST(czy_podjazd_dla_wozkow    AS bit), 0),
     ISNULL(TRY_CAST(czy_monitoring            AS bit), 0),
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  -- remaining flags default 0
-    0, 0, 0, 0, 0, 0  -- active methods: set via Informator overlay
+    0, 0, 0, 0, 0, 0,  -- active methods: set via Informator overlay
+    ISNULL(TRY_CAST(czy_drukarka_dla_uczniow AS bit), 0),
+    ISNULL(TRY_CAST(czy_przystanek_mpk       AS bit), 0)
 FROM dbo.stg_atmosfera;
 
 -- Insert Wymiar_Atmosfera rows for schools that have Informator data but no swiadomiewybieram entry

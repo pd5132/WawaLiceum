@@ -110,6 +110,9 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
     jakosc_odpoczynku_proc      decimal(5,2) NULL,
     czas_nauki_po_lekcjach_min  int          NULL,
     liczba_ankiet               int          NULL,
+    liczba_uczniow              int          NULL,
+    czy_drukarka_dla_uczniow    bit          NOT NULL DEFAULT 0,
+    czy_przystanek_mpk          bit          NOT NULL DEFAULT 0,
     -- Aktywne metody nauczania (z Informatora PDF)
     czy_metoda_projektu             bit          NOT NULL DEFAULT 0,
     czy_gry_edukacyjne              bit          NOT NULL DEFAULT 0,
