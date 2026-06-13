@@ -3,22 +3,23 @@
 -- Hurtownia danych dla projektu WawaLiceum
 --
 -- Zawiera:
---   CZESC 1: DDL — tworzenie bazy (schemat gwiazdkowy)
+--   CZESC 1: DDL — tworzenie schematu bazy (schemat gwiazdkowy)
 --   CZESC 2: ETL WYMIARY — ladowanie stagingu do tabel wymiarow
 --   CZESC 3: ETL FAKTY — ladowanie stagingu do tabel faktow
---   CZESC 4: WALIDACJA I ZAPYTANIA ANALITYCZNE
+--   CZESC 4: CZYSZCZENIE — usuniecie szkol nieistotnych
+--             (specjalne, zaoczne, dla doroslych)
+--   CZESC 5: INICJATYWY MIEDZYNARODOWE — metadane szkol bez danych CKE
+--   CZESC 6: WALIDACJA I ZAPYTANIA ANALITYCZNE
 --
 -- Wymagania wstepne:
---   - Baza WawaLiceumDB musi istniec (CREATE DATABASE WawaLiceumDB)
---   - Tabele staging (stg_*) musza byc zaladowane przez ETL Python
---     (etl/load_staging.py) przed uruchomieniem CZESCI 2 i 3
+--   - Baza WawaLiceumDB musi istniec: CREATE DATABASE WawaLiceumDB
+--   - Tabele staging (stg_*) musza byc zaladowane przez Python ETL
+--     (python -m etl.load_staging) przed uruchomieniem CZESCI 2-5
 --
 -- Kolejnosc uruchomienia:
 --   1. Uruchom CZESC 1 (jednorazowo lub przy przebudowie schematu)
---   2. Uruchom ETL Python: python3 -m etl.load_staging
---   3. Uruchom CZESC 2 (wymiary)
---   4. Uruchom CZESC 3 (fakty)
---   5. Uruchom CZESC 4 (walidacja)
+--   2. Uruchom Python ETL: python -m etl.load_staging
+--   3. Uruchom CZESCI 2-6 po kolei
 -- ============================================================
 
 USE [WawaLiceumDB];
@@ -124,6 +125,10 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
     jakosc_odpoczynku_proc      decimal(5,2) NULL,
     czas_nauki_po_lekcjach_min  int          NULL,
     liczba_ankiet               int          NULL,
+    liczba_uczniow              int          NULL,
+    czy_drukarka_dla_uczniow    bit          NOT NULL DEFAULT 0,
+    czy_przystanek_mpk          bit          NOT NULL DEFAULT 0,
+    czy_silownia                bit          NOT NULL DEFAULT 0,
     -- Aktywne metody nauczania (z Informatora PDF)
     czy_metoda_projektu             bit          NOT NULL DEFAULT 0,
     czy_gry_edukacyjne              bit          NOT NULL DEFAULT 0,
@@ -138,15 +143,15 @@ CREATE TABLE dbo.Wymiar_Atmosfera (
 CREATE TABLE dbo.Wymiar_Przedmiot_Maturalny (
     id_przedmiotu    int           IDENTITY(1,1) NOT NULL,
     nazwa_przedmiotu nvarchar(100) NOT NULL,
-    poziom           nvarchar(50)  NOT NULL,    -- podstawowy / rozszerzony
+    poziom           nvarchar(50)  NOT NULL,
     CONSTRAINT PK_Wymiar_Przedmiot PRIMARY KEY (id_przedmiotu),
     CONSTRAINT UQ_Przedmiot UNIQUE (nazwa_przedmiotu, poziom)
 );
 
 CREATE TABLE dbo.Wymiar_Typ_EWD (
     id_typu_ewd    int           IDENTITY(1,1) NOT NULL,
-    nazwa_egzaminu nvarchar(100) NOT NULL,      -- np. "przedmioty humanistyczne – do 2022"
-    rodzaj_zapisu  nvarchar(50)  NOT NULL,      -- kod wskaznika, np. "mlh_2016", "mlm_bk23l"
+    nazwa_egzaminu nvarchar(100) NOT NULL,
+    rodzaj_zapisu  nvarchar(50)  NOT NULL,
     CONSTRAINT PK_Wymiar_Typ_EWD PRIMARY KEY (id_typu_ewd),
     CONSTRAINT UQ_Typ_EWD UNIQUE (nazwa_egzaminu, rodzaj_zapisu)
 );
@@ -184,29 +189,26 @@ CREATE TABLE dbo.Fakt_Ranking_Perspektywy (
 
 -- Historyczne progi punktowe — 1 wiersz na (szkola, oddzial, rok).
 -- Zrodlo: PDF-y z progami 2023-2025.
--- Informacje o oddziale jako wymiary zdegenerowane (Wymiar_Profil nie istnieje
--- na tym poziomie szczegolowosci — plan naboru jest agregowany).
 CREATE TABLE dbo.Fakt_Rekrutacja_Wyniki (
     id_fakt            int           IDENTITY(1,1) NOT NULL,
     id_szkoly_rspo     int           NOT NULL,
     id_czas            int           NOT NULL,
-    symbol_oddzialu    nvarchar(50)  NOT NULL,   -- np. "1A", "1Ah"
-    nazwa_oddzialu     nvarchar(255) NOT NULL,   -- np. "[O] geogr-hist-ang (ang-hisz*)"
+    symbol_oddzialu    nvarchar(50)  NOT NULL,
+    nazwa_oddzialu     nvarchar(255) NOT NULL,
     typ_oddzialu       char(2)       NOT NULL,   -- O / D / MS
     prog_punktowy_min  decimal(5,2)  NULL,
-    prog_punktowy_max  decimal(5,2)  NULL,       -- dostepny tylko w danych 2023
+    prog_punktowy_max  decimal(5,2)  NULL,
     CONSTRAINT PK_Fakt_Rekrutacja_Wyniki PRIMARY KEY (id_fakt),
     CONSTRAINT UQ_Rekrutacja UNIQUE (id_szkoly_rspo, id_czas, symbol_oddzialu)
 );
 
 -- Plan naboru 2026 — agregowane liczby miejsc per szkola i typ oddzialu.
--- Brak indywidualnych symboli oddzialow w danych zrodlowych.
 CREATE TABLE dbo.Fakt_Plan_Naboru (
     id_plan            int          IDENTITY(1,1) NOT NULL,
     id_szkoly_rspo     int          NOT NULL,
     id_czas            int          NOT NULL,
     typ_oddzialu       char(2)      NOT NULL,   -- O / D / MS
-    jezyk_dwujezyczny  nvarchar(50) NULL,       -- NULL dla oddzialow typu O
+    jezyk_dwujezyczny  nvarchar(50) NULL,
     liczba_oddzialow   int          NOT NULL,
     liczba_miejsc      int          NOT NULL,
     CONSTRAINT PK_Fakt_Plan_Naboru PRIMARY KEY (id_plan),
@@ -240,7 +242,6 @@ CREATE TABLE dbo.Fakt_Matura_EWD (
     egzamin_oszacowanie_punktowe   decimal(5,2) NULL,
     egzamin_gorna_granica_ufnosci  decimal(5,2) NULL,
     egzamin_dolna_granica_ufnosci  decimal(5,2) NULL,
-    -- Etykieta cwiartki wykresu EWD (uzupelniana po INSERT na podstawie EWD=0 i sredniej egzaminu)
     typ_szkoly_ewd                 nvarchar(60) NULL,
     CONSTRAINT PK_Fakt_Matura_EWD PRIMARY KEY (id_fakt_ewd),
     CONSTRAINT UQ_EWD UNIQUE (id_szkoly_rspo, id_czas, id_typu_ewd)
@@ -276,11 +277,11 @@ GO
 
 -- ============================================================
 -- CZESC 2: ETL WYMIARY — stg_* → tabele wymiarow
--- Uruchom po zaladowaniu stagingu przez Python (etl/load_staging.py)
+-- Uruchom po zaladowaniu stagingu przez Python ETL
 -- ============================================================
 
 -- Oproznienie tabel faktow przed przebudowa wymiarow
--- (SQL Server blokuje TRUNCATE na tabelach z FK, DELETE omija to ograniczenie)
+-- (SQL Server blokuje TRUNCATE na tabelach z FK — DELETE omija to ograniczenie)
 TRUNCATE TABLE dbo.Fakt_Matura_EWD;
 TRUNCATE TABLE dbo.Fakt_Matura_Statystyki_Szczegolowe;
 TRUNCATE TABLE dbo.Fakt_Rekrutacja_Wyniki;
@@ -292,8 +293,6 @@ GO
 
 -- ------------------------------------------------------------
 -- Wymiar_Czas
--- Lata: matura (2025), ranking (2023-2026), progi PDF (2023-2025),
--- plan naboru (2026/2027 → rok 2026), EWD (2012-2022)
 -- ------------------------------------------------------------
 DELETE FROM dbo.Wymiar_Czas;
 
@@ -328,8 +327,7 @@ WHERE rok IS NOT NULL;
 
 
 -- ------------------------------------------------------------
--- Wymiar_Szkola  (zrodlo: stg_rspo z rejestru RSPO)
--- stg_wiki_coords dostarcza wspolrzednych geograficznych (opcjonalne)
+-- Wymiar_Szkola  (zrodlo: stg_rspo)
 -- ------------------------------------------------------------
 DELETE FROM dbo.Wymiar_Szkola;
 
@@ -378,7 +376,7 @@ WHERE nazwa_przedmiotu IS NOT NULL;
 
 
 -- ------------------------------------------------------------
--- Wymiar_Typ_EWD  (wskazniki EWD: humanistyczny, mat-przyrodniczy, per-subject)
+-- Wymiar_Typ_EWD
 -- ------------------------------------------------------------
 DELETE FROM dbo.Wymiar_Typ_EWD;
 
@@ -392,60 +390,74 @@ WHERE e.typ_ewd IS NOT NULL AND e.typ_ewd <> '';
 
 -- ------------------------------------------------------------
 -- Wymiar_Atmosfera
--- Zrodlo podstawowe: stg_atmosfera (swiadomiewybieram.pl)
+-- Zrodlo: stg_atmosfera (swiadomiewybieram.pl)
 -- Nakladka: stg_informator_flags (Informator PDF — wyzszy priorytet)
--- Jesli stg_atmosfera jest pusta (np. strona niedostepna), wstawiane
--- sa wiersze-puste dla szkol z danych Informatora.
 -- ------------------------------------------------------------
 TRUNCATE TABLE dbo.Wymiar_Atmosfera;
 
 INSERT INTO dbo.Wymiar_Atmosfera (
     id_szkoly_rspo,
-    atmosfera_proc, przyjemnosc_nauki_proc, relacje_uczniow_proc,
-    relacja_nauczyciel_proc, nowoczesnosc_zajec_proc, polecanie_szkoly_proc,
-    jakosc_odpoczynku_proc, liczba_ankiet,
     czy_strefa_ciszy, czy_miejsce_odpoczynku, czy_ciche_dzwonki,
     czy_rozowa_skrzyneczka, czy_szafki_uczniow, czy_stojak_na_rowery,
-    czy_teren_zielony, czy_otwarte_boiska, czy_wifi_dla_uczniow, czy_sklepik_szkolny,
-    czy_bufet_stolowka, czy_psycholog_na_etacie, czy_pedagog_specjalny,
-    czy_winda, czy_podjazd_dla_wozkow, czy_monitoring,
-    czy_posilki_wegetarianskie, czy_posilki_weganskie,
-    czy_zrodlo_wody_pitnej, czy_wejscie_na_karty,
-    czy_rejestracja_gosci, czy_rzecznik_praw_ucznia,
-    czy_pielegniarka, czy_osoba_zaufania, czy_zajecia_tus,
-    czy_rewalidacja, czy_petla_indukcyjna, czy_schodolaz,
+    czy_teren_zielony, czy_otwarte_boiska,
+    czy_sklepik_szkolny, czy_bufet_stolowka,
+    czy_posilki_wegetarianskie, czy_posilki_weganskie, czy_zrodlo_wody_pitnej,
+    czy_monitoring, czy_wejscie_na_karty, czy_rejestracja_gosci,
+    czy_rzecznik_praw_ucznia, czy_pielegniarka,
+    czy_psycholog_na_etacie, czy_pedagog_specjalny,
+    czy_osoba_zaufania, czy_zajecia_tus, czy_rewalidacja,
+    czy_winda, czy_podjazd_dla_wozkow,
+    czy_petla_indukcyjna, czy_schodolaz,
+    atmosfera_proc, przyjemnosc_nauki_proc, relacje_uczniow_proc,
+    relacja_nauczyciel_proc, nowoczesnosc_zajec_proc,
+    polecanie_szkoly_proc, jakosc_odpoczynku_proc,
+    czas_nauki_po_lekcjach_min, liczba_ankiet,
+    czy_wifi_dla_uczniow,
     czy_metoda_projektu, czy_gry_edukacyjne, czy_ai_nowe_technologie,
-    czy_mapy_mysli, czy_edukacja_antydyskryminacyjna, czy_metoda_steam
+    czy_mapy_mysli, czy_edukacja_antydyskryminacyjna, czy_metoda_steam,
+    liczba_uczniow, czy_drukarka_dla_uczniow, czy_przystanek_mpk, czy_silownia
 )
 SELECT
     TRY_CAST(rspo_szkoly AS int),
-    TRY_CAST(atmosfera_proc           AS decimal(5,2)),
-    TRY_CAST(przyjemnosc_nauki_proc   AS decimal(5,2)),
-    TRY_CAST(relacje_uczniow_proc     AS decimal(5,2)),
-    TRY_CAST(relacja_nauczyciel_proc  AS decimal(5,2)),
-    TRY_CAST(nowoczesnosc_zajec_proc  AS decimal(5,2)),
-    TRY_CAST(polecanie_szkoly_proc    AS decimal(5,2)),
-    TRY_CAST(jakosc_odpoczynku_proc   AS decimal(5,2)),
-    TRY_CAST(liczba_ankiet            AS int),
-    ISNULL(TRY_CAST(czy_strefa_ciszy          AS bit), 0),
-    ISNULL(TRY_CAST(czy_miejsce_odpoczynku    AS bit), 0),
+    ISNULL(TRY_CAST(czy_strefa_ciszy         AS bit), 0),
+    ISNULL(TRY_CAST(czy_miejsce_odpoczynku   AS bit), 0),
     ISNULL(TRY_CAST(czy_ciche_dzwonki        AS bit), 0),
-    ISNULL(TRY_CAST(czy_rozowa_skrzyneczka    AS bit), 0),
-    ISNULL(TRY_CAST(czy_szafki_uczniow        AS bit), 0),
-    ISNULL(TRY_CAST(czy_stojak_na_rowery      AS bit), 0),
-    ISNULL(TRY_CAST(czy_teren_zielony         AS bit), 0),
-    ISNULL(TRY_CAST(czy_otwarte_boiska        AS bit), 0),
-    0,  -- czy_wifi_dla_uczniow: only from Informator overlay
-    ISNULL(TRY_CAST(czy_sklepik_szkolny       AS bit), 0),
-    ISNULL(TRY_CAST(czy_bufet_stolowka        AS bit), 0),
-    ISNULL(TRY_CAST(czy_psycholog_na_etacie   AS bit), 0),
-    ISNULL(TRY_CAST(czy_pedagog_specjalny     AS bit), 0),
-    ISNULL(TRY_CAST(czy_winda                 AS bit), 0),
-    ISNULL(TRY_CAST(czy_podjazd_dla_wozkow    AS bit), 0),
-    ISNULL(TRY_CAST(czy_monitoring            AS bit), 0),
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  -- remaining flags default 0
-    0, 0, 0, 0, 0, 0  -- active methods: set via Informator overlay
-FROM dbo.stg_atmosfera;
+    ISNULL(TRY_CAST(czy_rozowa_skrzyneczka   AS bit), 0),
+    ISNULL(TRY_CAST(czy_szafki_uczniow       AS bit), 0),
+    ISNULL(TRY_CAST(czy_stojak_na_rowery     AS bit), 0),
+    ISNULL(TRY_CAST(czy_teren_zielony        AS bit), 0),
+    ISNULL(TRY_CAST(czy_otwarte_boiska       AS bit), 0),
+    ISNULL(TRY_CAST(czy_sklepik_szkolny      AS bit), 0),
+    ISNULL(TRY_CAST(czy_bufet_stolowka       AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),  -- posilki_wege/wegan/zrodlo_wody: via Informator overlay
+    ISNULL(TRY_CAST(czy_monitoring           AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit),                   -- wejscie_na_karty, rejestracja_gosci: via Informator
+    ISNULL(TRY_CAST(czy_rzecznik_praw_ucznia AS bit), 0),
+    ISNULL(TRY_CAST(czy_pielegniarka         AS bit), 0),
+    ISNULL(TRY_CAST(czy_psycholog_na_etacie  AS bit), 0),
+    ISNULL(TRY_CAST(czy_pedagog_specjalny    AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),  -- osoba_zaufania, zajecia_tus, rewalidacja
+    ISNULL(TRY_CAST(czy_winda                AS bit), 0),
+    ISNULL(TRY_CAST(czy_podjazd_dla_wozkow   AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit),                   -- petla_indukcyjna, schodolaz
+    TRY_CAST(atmosfera_proc AS decimal(5,2)),
+    TRY_CAST(przyjemnosc_nauki_proc AS decimal(5,2)),
+    TRY_CAST(relacje_uczniow_proc AS decimal(5,2)),
+    TRY_CAST(REPLACE(CAST(relacja_nauczyciel_proc AS varchar(20)), ',', '.') AS decimal(5,2)),
+    TRY_CAST(REPLACE(CAST(nowoczesnosc_zajec_proc AS varchar(20)), ',', '.') AS decimal(5,2)),
+    TRY_CAST(polecanie_szkoly_proc AS decimal(5,2)),
+    TRY_CAST(jakosc_odpoczynku_proc AS decimal(5,2)),
+    TRY_CAST(czas_nauki_po_lekcjach_min AS int),
+    TRY_CAST(liczba_ankiet AS int),
+    ISNULL(TRY_CAST(czy_wifi_dla_uczniow     AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),  -- active methods: via Informator overlay
+    CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),
+    TRY_CAST(liczba_uczniow AS int),
+    ISNULL(TRY_CAST(czy_drukarka_dla_uczniow AS bit), 0),
+    ISNULL(TRY_CAST(czy_przystanek_mpk       AS bit), 0),
+    ISNULL(TRY_CAST(czy_silownia             AS bit), 0)
+FROM dbo.stg_atmosfera
+WHERE TRY_CAST(rspo_szkoly AS int) IN (SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola);
 
 -- Wstaw puste wiersze dla szkol z Informatora bez danych ze swiadomiewybieram
 INSERT INTO dbo.Wymiar_Atmosfera (id_szkoly_rspo)
@@ -485,7 +497,6 @@ UPDATE a SET
     a.czy_osoba_zaufania            = CASE WHEN f.czy_osoba_zaufania           = 1 THEN 1 ELSE a.czy_osoba_zaufania            END,
     a.czy_zajecia_tus               = CASE WHEN f.czy_zajecia_tus              = 1 THEN 1 ELSE a.czy_zajecia_tus               END,
     a.czy_rewalidacja               = CASE WHEN f.czy_rewalidacja              = 1 THEN 1 ELSE a.czy_rewalidacja               END,
-    a.czy_wifi_dla_uczniow          = CASE WHEN f.czy_wifi_dla_uczniow         = 1 THEN 1 ELSE a.czy_wifi_dla_uczniow          END,
     a.czy_metoda_projektu           = CASE WHEN f.czy_metoda_projektu          = 1 THEN 1 ELSE a.czy_metoda_projektu           END,
     a.czy_gry_edukacyjne            = CASE WHEN f.czy_gry_edukacyjne           = 1 THEN 1 ELSE a.czy_gry_edukacyjne            END,
     a.czy_ai_nowe_technologie       = CASE WHEN f.czy_ai_nowe_technologie      = 1 THEN 1 ELSE a.czy_ai_nowe_technologie       END,
@@ -500,6 +511,8 @@ JOIN dbo.stg_informator_flags f ON f.nazwa_szkoly_informator = x.source_name;
 -- ------------------------------------------------------------
 -- Wymiar_Inicjatywy_Zewnetrzne + Mostek_Szkola_Inicjatywy
 -- Zrodlo: stg_informator_inicjatywy (elementy tekstowe z Informatora PDF)
+-- UWAGA: skrypt 40 doladowuje pozniej dodatkowe wpisy Program_miedzynarodowy
+--        i Brak_danych_CKE — nie uruchamiac CZESCI 5 wczesniej niz po CZESCI 2
 -- ------------------------------------------------------------
 DELETE FROM dbo.Mostek_Szkola_Inicjatywy;
 DELETE FROM dbo.Wymiar_Inicjatywy_Zewnetrzne;
@@ -527,13 +540,10 @@ GO
 
 -- ============================================================
 -- CZESC 3: ETL FAKTY — stg_* → tabele faktow
--- Uruchom po CZESCI 2
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- Fakt_Ranking_Perspektywy
--- Zrodlo: stg_ranking (Ranking Perspektyw 2023-2026)
--- Dopasowanie nazw szkol przez stg_school_xref (etl/match/school_matcher.py)
 -- ------------------------------------------------------------
 TRUNCATE TABLE dbo.Fakt_Ranking_Perspektywy;
 
@@ -551,8 +561,7 @@ WHERE x.id_szkoly_rspo IS NOT NULL;
 
 -- ------------------------------------------------------------
 -- Fakt_Rekrutacja_Wyniki
--- Zrodlo: stg_progi (PDF-y z progami 2023, 2024, 2025)
--- Dopasowanie szkol: stg_school_xref (source = 'progi')
+-- Zrodlo: stg_progi (PDF-y z progami 2023-2025)
 -- GROUP BY chroni przed duplikatami z roznych PDF-ow tej samej szkoly
 -- ------------------------------------------------------------
 TRUNCATE TABLE dbo.Fakt_Rekrutacja_Wyniki;
@@ -565,10 +574,13 @@ SELECT
     x.id_szkoly_rspo,
     c.id_czas,
     p.symbol_oddzialu,
-    MIN(p.nazwa_oddzialu),
+    ISNULL(MIN(p.nazwa_oddzialu), p.symbol_oddzialu),
     CASE
+        WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]DW]%' THEN 'D'
         WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]D]%'  THEN 'D'
         WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]MS]%' THEN 'MS'
+        WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]S]%'  THEN 'S'
+        WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]M]%'  THEN 'M'
         ELSE 'O'
     END,
     MIN(p.prog_min),
@@ -585,7 +597,6 @@ GROUP BY x.id_szkoly_rspo, c.id_czas, p.symbol_oddzialu;
 -- ------------------------------------------------------------
 -- Fakt_Plan_Naboru
 -- Zrodlo: stg_plan_naboru (plan naboru 2026/2027)
--- Ziarno: szkola x typ_oddzialu x jezyk_dwujezyczny
 -- ------------------------------------------------------------
 TRUNCATE TABLE dbo.Fakt_Plan_Naboru;
 
@@ -609,8 +620,8 @@ WHERE x.id_szkoly_rspo IS NOT NULL
 
 -- ------------------------------------------------------------
 -- Fakt_Matura_Statystyki_Szczegolowe
--- Zrodlo: stg_matura (pliki CSV OKE/CKE 2025, poziom podstawowy i rozszerzony)
--- RSPO bezposrednio w danych zrodlowych — brak potrzeby stg_school_xref
+-- Zrodlo: stg_matura (OKE CSV 2025 + OKE XLSX 2024 z mapa.wyniki.edu.pl)
+-- RSPO bezposrednio w danych — brak potrzeby stg_school_xref
 -- ------------------------------------------------------------
 TRUNCATE TABLE dbo.Fakt_Matura_Statystyki_Szczegolowe;
 
@@ -641,8 +652,8 @@ WHERE TRY_CAST(m.rspo_szkoly AS int) IN (SELECT id_szkoly_rspo FROM dbo.Wymiar_S
 
 -- ------------------------------------------------------------
 -- Fakt_Matura_EWD
--- Zrodlo: stg_ewd (API api-ewd.men.gov.pl, skrobot etl/scrape/ewd.py)
--- AVG() chroni przed duplikatami w danych EWD (ten sam wskaznik, ten sam rok)
+-- Zrodlo: stg_ewd (API ewd.edu.pl, skrobot etl/scrape/ewd.py)
+-- AVG() chroni przed duplikatami (ten sam wskaznik, ten sam rok)
 -- ------------------------------------------------------------
 TRUNCATE TABLE dbo.Fakt_Matura_EWD;
 
@@ -668,18 +679,7 @@ WHERE TRY_CAST(e.rspo_szkoly AS int) IN (SELECT id_szkoly_rspo FROM dbo.Wymiar_S
 GROUP BY TRY_CAST(e.rspo_szkoly AS int), c.id_czas, t.id_typu_ewd;
 
 
--- ------------------------------------------------------------
 -- Klasyfikacja cwiartki EWD (typ_szkoly_ewd)
--- Os X: sredni wynik egzaminu per (wskaznik x rok) w zbiorze danych
--- Os Y: EWD = 0 zawsze oznacza srednia krajowa
---
--- Cwiartki:
---   EWD > 0, egzamin >= avg  → Szkola sukcesu            (gora-prawo)
---   EWD > 0, egzamin <  avg  → Szkola wspierajaca         (gora-lewo)
---   EWD < 0, egzamin >= avg  → Szkola niewykorzystanych mozliwosci (dol-prawo)
---   EWD < 0, egzamin <  avg  → Szkola wymagajaca pomocy   (dol-lewo)
---   EWD = 0 lub NULL         → Szkola neutralna
--- ------------------------------------------------------------
 WITH avg_egz AS (
     SELECT id_typu_ewd,
            id_czas,
@@ -709,12 +709,175 @@ GO
 
 
 -- ============================================================
--- CZESC 4: WALIDACJA I ZAPYTANIA ANALITYCZNE
+-- CZESC 4: CZYSZCZENIE — usuniecie szkol nieistotnych
+-- Usuwa: DLA DOROSLYCH, SPECJALNE, ZAOCZNE
+-- ============================================================
+
+DELETE FROM dbo.Fakt_Rekrutacja_Wyniki
+WHERE id_szkoly_rspo IN (
+    SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola
+    WHERE nazwa_liceum LIKE N'%SPECJALNE%'
+       OR nazwa_liceum LIKE N'%DLA DOROSLYCH%'
+       OR nazwa_liceum LIKE N'%ZAOCZNE%'
+);
+
+DELETE FROM dbo.Fakt_Plan_Naboru
+WHERE id_szkoly_rspo IN (
+    SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola
+    WHERE nazwa_liceum LIKE N'%SPECJALNE%'
+       OR nazwa_liceum LIKE N'%DLA DOROSLYCH%'
+       OR nazwa_liceum LIKE N'%ZAOCZNE%'
+);
+
+DELETE FROM dbo.Fakt_Matura_Statystyki_Szczegolowe
+WHERE id_szkoly_rspo IN (
+    SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola
+    WHERE nazwa_liceum LIKE N'%SPECJALNE%'
+       OR nazwa_liceum LIKE N'%DLA DOROSLYCH%'
+       OR nazwa_liceum LIKE N'%ZAOCZNE%'
+);
+
+DELETE FROM dbo.Fakt_Matura_EWD
+WHERE id_szkoly_rspo IN (
+    SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola
+    WHERE nazwa_liceum LIKE N'%SPECJALNE%'
+       OR nazwa_liceum LIKE N'%DLA DOROSLYCH%'
+       OR nazwa_liceum LIKE N'%ZAOCZNE%'
+);
+
+DELETE FROM dbo.Fakt_Ranking_Perspektywy
+WHERE id_szkoly_rspo IN (
+    SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola
+    WHERE nazwa_liceum LIKE N'%SPECJALNE%'
+       OR nazwa_liceum LIKE N'%DLA DOROSLYCH%'
+       OR nazwa_liceum LIKE N'%ZAOCZNE%'
+);
+
+DELETE FROM dbo.Mostek_Szkola_Inicjatywy
+WHERE id_szkoly_rspo IN (
+    SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola
+    WHERE nazwa_liceum LIKE N'%SPECJALNE%'
+       OR nazwa_liceum LIKE N'%DLA DOROSLYCH%'
+       OR nazwa_liceum LIKE N'%ZAOCZNE%'
+);
+
+DELETE FROM dbo.Wymiar_Atmosfera
+WHERE id_szkoly_rspo IN (
+    SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola
+    WHERE nazwa_liceum LIKE N'%SPECJALNE%'
+       OR nazwa_liceum LIKE N'%DLA DOROSLYCH%'
+       OR nazwa_liceum LIKE N'%ZAOCZNE%'
+);
+
+DELETE FROM dbo.Wymiar_Szkola
+WHERE nazwa_liceum LIKE N'%SPECJALNE%'
+   OR nazwa_liceum LIKE N'%DLA DOROSLYCH%'
+   OR nazwa_liceum LIKE N'%ZAOCZNE%';
+
+GO
+
+SELECT COUNT(*) AS wymiar_szkola_count FROM dbo.Wymiar_Szkola;
+GO
+
+
+-- ============================================================
+-- CZESC 5: INICJATYWY MIEDZYNARODOWE
+-- Dodaje metadane dla szkol bez danych CKE:
+--   Program_miedzynarodowy  (A-Levels, IB, Abitur, itd.)
+--   Brak_danych_CKE         (anonimizacja, brak klasy, szkola terapeutyczna)
+-- ============================================================
+
+INSERT INTO dbo.Wymiar_Inicjatywy_Zewnetrzne (nazwa_elementu, typ_inicjatywy) VALUES
+('A-Levels',                                            'Program_miedzynarodowy'),
+('IGCSE',                                               'Program_miedzynarodowy'),
+('IB Diploma Programme',                                'Program_miedzynarodowy'),
+('American High School Diploma (Cognia)',               'Program_miedzynarodowy'),
+('Abitur',                                              'Program_miedzynarodowy'),
+('Program wielojezyczny - certyfikaty jezykowe',        'Program_miedzynarodowy'),
+('Brak danych CKE - mala liczba zdajacych (anonimizacja)', 'Brak_danych_CKE'),
+('Brak klasy maturalnej w roku sprawozdawczym',         'Brak_danych_CKE'),
+('Szkola terapeutyczna / osrodek wsparcia psychicznego','Brak_danych_CKE');
+GO
+
+-- Group 1 – International programmes
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'A-Levels'
+  AND s.id_szkoly_rspo IN (278899, 262819);
+
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'IGCSE'
+  AND s.id_szkoly_rspo IN (278899);
+
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'IB Diploma Programme'
+  AND s.id_szkoly_rspo IN (84871, 270480, 133632, 84862, 25463);
+
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'American High School Diploma (Cognia)'
+  AND s.id_szkoly_rspo IN (84871);
+
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'Abitur'
+  AND s.id_szkoly_rspo IN (106173);
+
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'Program wielojezyczny - certyfikaty jezykowe'
+  AND s.id_szkoly_rspo IN (482471);
+GO
+
+-- Group 2 – CKE anonymization
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'Brak danych CKE - mala liczba zdajacych (anonimizacja)'
+  AND s.id_szkoly_rspo IN (279474, 480515, 479210, 271713, 130689, 478866);
+GO
+
+-- Group 3 – No graduating class
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'Brak klasy maturalnej w roku sprawozdawczym'
+  AND s.id_szkoly_rspo IN (480767, 478575, 277478, 275387, 483685, 485061, 484168);
+GO
+
+-- Group 4 – Therapeutic schools
+INSERT INTO dbo.Mostek_Szkola_Inicjatywy (id_szkoly_rspo, id_inicjatywy)
+SELECT s.id_szkoly_rspo, i.id_inicjatywy
+FROM dbo.Wymiar_Szkola s
+CROSS JOIN dbo.Wymiar_Inicjatywy_Zewnetrzne i
+WHERE i.nazwa_elementu = 'Szkola terapeutyczna / osrodek wsparcia psychicznego'
+  AND s.id_szkoly_rspo IN (484245, 482237, 483441);
+GO
+
+
+-- ============================================================
+-- CZESC 6: WALIDACJA I ZAPYTANIA ANALITYCZNE
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- 1. Liczba wierszy per tabela
--- Oczekiwane minimum: Fakt_Rekrutacja_Wyniki >= 1500
+-- Oczekiwane minimum: Wymiar_Szkola ~196, Fakt_Rekrutacja_Wyniki >= 1500
 -- ------------------------------------------------------------
 SELECT 'Wymiar_Czas'                       AS tabela, COUNT(*) AS wiersze FROM dbo.Wymiar_Czas
 UNION ALL SELECT 'Wymiar_Szkola',                      COUNT(*) FROM dbo.Wymiar_Szkola
@@ -753,7 +916,6 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Wymiar_Szkola s WHERE s.id_szkoly_rspo = f.i
 
 -- ------------------------------------------------------------
 -- 3. Pokrycie progami: ile lat danych per szkola
--- Szkoly z 3 latami = pelne dane do wykresu trendu (Screen 3 aplikacji)
 -- ------------------------------------------------------------
 SELECT coverage AS liczba_lat, COUNT(*) AS liczba_szkol
 FROM (
@@ -774,8 +936,8 @@ SELECT
     f.typ_szkoly_ewd,
     COUNT(*)               AS liczba_szkol
 FROM dbo.Fakt_Matura_EWD f
-JOIN dbo.Wymiar_Typ_EWD  t ON t.id_typu_ewd = f.id_typu_ewd
-JOIN dbo.Wymiar_Czas     c ON c.id_czas     = f.id_czas
+JOIN dbo.Wymiar_Typ_EWD  t ON t.id_typu_ewd   = f.id_typu_ewd
+JOIN dbo.Wymiar_Czas     c ON c.id_czas        = f.id_czas
 WHERE f.typ_szkoly_ewd IS NOT NULL
 GROUP BY t.rodzaj_zapisu, c.rok_kalendarzowy, f.typ_szkoly_ewd
 ORDER BY t.rodzaj_zapisu, c.rok_kalendarzowy, f.typ_szkoly_ewd;
@@ -784,22 +946,21 @@ ORDER BY t.rodzaj_zapisu, c.rok_kalendarzowy, f.typ_szkoly_ewd;
 -- ------------------------------------------------------------
 -- 5. SHOWCASE: "Ukryty diament"
 --    Oddzial humanistyczny z progiem < 165 pkt I dodatnim EWD humanistycznym
---    (szkola o niskim progu, ktora realnie rozwija potencjal ucznia)
 -- ------------------------------------------------------------
 SELECT
     s.nazwa_liceum,
     s.dzielnica,
     r.symbol_oddzialu,
     r.nazwa_oddzialu,
-    MIN(r.prog_punktowy_min)   AS min_prog_3lat,
-    MAX(r.prog_punktowy_min)   AS max_prog_3lat,
-    e.ewd_oszacowanie_punktowe AS ewd_humanistyczne,
-    t.rodzaj_zapisu            AS typ_ewd,
-    c.rok_kalendarzowy         AS rok_ewd
+    MIN(r.prog_punktowy_min)             AS min_prog_3lat,
+    MAX(r.prog_punktowy_min)             AS max_prog_3lat,
+    e.ewd_oszacowanie_punktowe           AS ewd_humanistyczne,
+    t.rodzaj_zapisu                      AS typ_ewd,
+    c.rok_kalendarzowy                   AS rok_ewd
 FROM dbo.Fakt_Rekrutacja_Wyniki r
-JOIN dbo.Wymiar_Szkola   s ON s.id_szkoly_rspo = r.id_szkoly_rspo
+JOIN dbo.Wymiar_Szkola  s ON s.id_szkoly_rspo = r.id_szkoly_rspo
 JOIN dbo.Fakt_Matura_EWD e ON e.id_szkoly_rspo = r.id_szkoly_rspo
-JOIN dbo.Wymiar_Typ_EWD  t ON t.id_typu_ewd    = e.id_typu_ewd
+JOIN dbo.Wymiar_Typ_EWD  t ON t.id_typu_ewd   = e.id_typu_ewd
 JOIN dbo.Wymiar_Czas     c ON c.id_czas        = e.id_czas
 WHERE e.ewd_oszacowanie_punktowe > 0
   AND t.nazwa_egzaminu LIKE '%humanist%'
@@ -815,18 +976,18 @@ ORDER BY e.ewd_oszacowanie_punktowe DESC;
 
 -- ------------------------------------------------------------
 -- 6. SHOWCASE: "Szkola zmarnowanych szans"
---    Wysoki sredni prog (prestiżowa) ALE ujemne EWD (obniza potencjal ucznia)
+--    Wysoki sredni prog ALE ujemne EWD
 -- ------------------------------------------------------------
 SELECT
     s.nazwa_liceum,
     s.dzielnica,
-    AVG(r.prog_punktowy_min)   AS sredni_prog_3lat,
-    e.ewd_oszacowanie_punktowe AS ewd,
-    t.rodzaj_zapisu            AS typ_wskaznika_ewd
+    AVG(r.prog_punktowy_min)             AS sredni_prog_3lat,
+    e.ewd_oszacowanie_punktowe           AS ewd,
+    t.rodzaj_zapisu
 FROM dbo.Fakt_Rekrutacja_Wyniki r
-JOIN dbo.Wymiar_Szkola   s ON s.id_szkoly_rspo = r.id_szkoly_rspo
+JOIN dbo.Wymiar_Szkola  s ON s.id_szkoly_rspo = r.id_szkoly_rspo
 JOIN dbo.Fakt_Matura_EWD e ON e.id_szkoly_rspo = r.id_szkoly_rspo
-JOIN dbo.Wymiar_Typ_EWD  t ON t.id_typu_ewd    = e.id_typu_ewd
+JOIN dbo.Wymiar_Typ_EWD  t ON t.id_typu_ewd   = e.id_typu_ewd
 GROUP BY s.nazwa_liceum, s.dzielnica, e.ewd_oszacowanie_punktowe, t.rodzaj_zapisu
 HAVING AVG(r.prog_punktowy_min) > 160
    AND e.ewd_oszacowanie_punktowe < 0
@@ -835,8 +996,6 @@ ORDER BY e.ewd_oszacowanie_punktowe ASC;
 
 -- ------------------------------------------------------------
 -- 7. SHOWCASE: Trend progow 2023-2025 dla konkretnego liceum
---    (dane do wykresu trendu w Screen 3 aplikacji mobilnej)
---    Zmien nazwe szkoly aby sprawdzic inne liceum.
 -- ------------------------------------------------------------
 SELECT
     s.nazwa_liceum,
@@ -875,7 +1034,7 @@ ORDER BY f.ewd_oszacowanie_punktowe DESC;
 
 
 -- ------------------------------------------------------------
--- 9. Szkoly z psychologiem/pedagogiem specjalnym (Screen 5 — Porownywarka)
+-- 9. Szkoly z psychologiem/pedagogiem specjalnym
 -- ------------------------------------------------------------
 SELECT
     s.nazwa_liceum,

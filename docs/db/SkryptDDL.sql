@@ -88,6 +88,7 @@ CREATE TABLE dbo.[Wymiar_Atmosfera] (
     [czy_przystanek_mpk] BIT DEFAULT ((0)) NOT NULL,
     [czy_silownia] BIT DEFAULT ((0)) NOT NULL,
     CONSTRAINT [PK_Wymiar_Atmosfera] PRIMARY KEY ([id_atmosfera]),
+    CONSTRAINT [UQ_Atmosfera_Szkola] UNIQUE ([id_szkoly_rspo]),
     CONSTRAINT [FK_Atmosfera_Szkola] FOREIGN KEY ([id_szkoly_rspo])
         REFERENCES dbo.[Wymiar_Szkola] ([id_szkoly_rspo])
 );
@@ -105,7 +106,8 @@ CREATE TABLE dbo.[Wymiar_Przedmiot_Maturalny] (
     [id_przedmiotu] INT IDENTITY(1,1) NOT NULL,
     [nazwa_przedmiotu] NVARCHAR(100) NOT NULL,
     [poziom] NVARCHAR(50) NOT NULL,
-    CONSTRAINT [PK_Wymiar_Przedmiot_Maturalny] PRIMARY KEY ([id_przedmiotu])
+    CONSTRAINT [PK_Wymiar_Przedmiot_Maturalny] PRIMARY KEY ([id_przedmiotu]),
+    CONSTRAINT [UQ_Przedmiot] UNIQUE ([nazwa_przedmiotu], [poziom])
 );
 GO
 
@@ -113,7 +115,8 @@ CREATE TABLE dbo.[Wymiar_Typ_EWD] (
     [id_typu_ewd] INT IDENTITY(1,1) NOT NULL,
     [nazwa_egzaminu] NVARCHAR(100) NOT NULL,
     [rodzaj_zapisu] NVARCHAR(50) NOT NULL,
-    CONSTRAINT [PK_Wymiar_Typ_EWD] PRIMARY KEY ([id_typu_ewd])
+    CONSTRAINT [PK_Wymiar_Typ_EWD] PRIMARY KEY ([id_typu_ewd]),
+    CONSTRAINT [UQ_Typ_EWD] UNIQUE ([nazwa_egzaminu], [rodzaj_zapisu])
 );
 GO
 
@@ -135,6 +138,7 @@ CREATE TABLE dbo.[Fakt_Rekrutacja_Wyniki] (
     [prog_punktowy_min] DECIMAL(5,2) NULL,
     [prog_punktowy_max] DECIMAL(5,2) NULL,
     CONSTRAINT [PK_Fakt_Rekrutacja_Wyniki] PRIMARY KEY ([id_fakt]),
+    CONSTRAINT [UQ_Rekrutacja] UNIQUE ([id_szkoly_rspo], [id_czas], [symbol_oddzialu]),
     CONSTRAINT [FK_Rekrutacja_Czas] FOREIGN KEY ([id_czas])
         REFERENCES dbo.[Wymiar_Czas] ([id_czas]),
     CONSTRAINT [FK_Rekrutacja_Szkola] FOREIGN KEY ([id_szkoly_rspo])
@@ -151,6 +155,7 @@ CREATE TABLE dbo.[Fakt_Plan_Naboru] (
     [liczba_oddzialow] INT NOT NULL,
     [liczba_miejsc] INT NOT NULL,
     CONSTRAINT [PK_Fakt_Plan_Naboru] PRIMARY KEY ([id_plan]),
+    CONSTRAINT [UQ_Plan] UNIQUE ([id_szkoly_rspo], [id_czas], [typ_oddzialu], [jezyk_dwujezyczny]),
     CONSTRAINT [FK_Plan_Czas] FOREIGN KEY ([id_czas])
         REFERENCES dbo.[Wymiar_Czas] ([id_czas]),
     CONSTRAINT [FK_Plan_Szkola] FOREIGN KEY ([id_szkoly_rspo])
@@ -171,6 +176,7 @@ CREATE TABLE dbo.[Fakt_Matura_Statystyki_Szczegolowe] (
     [mediana_proc] DECIMAL(5,2) NULL,
     [modalna_proc] DECIMAL(5,2) NULL,
     CONSTRAINT [PK_Fakt_Matura_Statystyki_Szczegolowe] PRIMARY KEY ([id_fakt_matura]),
+    CONSTRAINT [UQ_Matura] UNIQUE ([id_szkoly_rspo], [id_czas], [id_przedmiotu]),
     CONSTRAINT [FK_Szczegoly_Czas] FOREIGN KEY ([id_czas])
         REFERENCES dbo.[Wymiar_Czas] ([id_czas]),
     CONSTRAINT [FK_Szczegoly_Przedmiot] FOREIGN KEY ([id_przedmiotu])
@@ -193,6 +199,7 @@ CREATE TABLE dbo.[Fakt_Matura_EWD] (
     [egzamin_dolna_granica_ufnosci] DECIMAL(5,2) NULL,
     [typ_szkoly_ewd] NVARCHAR(60) NULL,
     CONSTRAINT [PK_Fakt_Matura_EWD] PRIMARY KEY ([id_fakt_ewd]),
+    CONSTRAINT [UQ_EWD] UNIQUE ([id_szkoly_rspo], [id_czas], [id_typu_ewd]),
     CONSTRAINT [FK_EWD_Czas] FOREIGN KEY ([id_czas])
         REFERENCES dbo.[Wymiar_Czas] ([id_czas]),
     CONSTRAINT [FK_EWD_Szkola] FOREIGN KEY ([id_szkoly_rspo])
@@ -209,6 +216,7 @@ CREATE TABLE dbo.[Fakt_Ranking_Perspektywy] (
     [pozycja_w_rankingu] INT NULL,
     [wskaznik_sumaryczny] DECIMAL(5,2) NULL,
     CONSTRAINT [PK_Fakt_Ranking_Perspektywy] PRIMARY KEY ([id_rankingu]),
+    CONSTRAINT [UQ_Ranking] UNIQUE ([id_czas], [id_szkoly_rspo]),
     CONSTRAINT [FK_Ranking_Czas] FOREIGN KEY ([id_czas])
         REFERENCES dbo.[Wymiar_Czas] ([id_czas]),
     CONSTRAINT [FK_Ranking_Szkola] FOREIGN KEY ([id_szkoly_rspo])
