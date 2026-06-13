@@ -140,7 +140,7 @@ INSERT INTO dbo.Wymiar_Atmosfera (
     czy_wifi_dla_uczniow,
     czy_metoda_projektu, czy_gry_edukacyjne, czy_ai_nowe_technologie,
     czy_mapy_mysli, czy_edukacja_antydyskryminacyjna, czy_metoda_steam,
-    liczba_uczniow, czy_drukarka_dla_uczniow, czy_przystanek_mpk
+    liczba_uczniow, czy_drukarka_dla_uczniow, czy_przystanek_mpk, czy_silownia
 )
 SELECT
     TRY_CAST(rspo_szkoly AS int),
@@ -179,7 +179,8 @@ SELECT
     CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),
     TRY_CAST(liczba_uczniow AS int),
     ISNULL(TRY_CAST(czy_drukarka_dla_uczniow AS bit), 0),
-    ISNULL(TRY_CAST(czy_przystanek_mpk       AS bit), 0)
+    ISNULL(TRY_CAST(czy_przystanek_mpk       AS bit), 0),
+    ISNULL(TRY_CAST(czy_silownia             AS bit), 0)
 FROM dbo.stg_atmosfera
 WHERE TRY_CAST(rspo_szkoly AS int) IN (SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola);
 

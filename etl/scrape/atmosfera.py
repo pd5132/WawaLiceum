@@ -59,16 +59,28 @@ def _login(session: requests.Session) -> bool:
     if not login or not password:
         print("[atm] WARNING: SW_LOGIN/SW_PASSWORD not set — scraping without auth (limited data)")
         return False
-    session.get(f"{BASE}/wp-login.php", timeout=10)  # sets wordpress_test_cookie
-    resp = session.post(f"{BASE}/wp-login.php", data={
-        "log": login,
-        "pwd": password,
-        "wp-submit": "Zaloguj się",
-        "redirect_to": f"{BASE}/wp-admin/",
-        "testcookie": "1",
-    }, headers={"Referer": f"{BASE}/wp-login.php"}, timeout=15, allow_redirects=True)
-    logged_in = "wp-admin" in resp.url or "dashboard" in resp.url or "wp-login" not in resp.url
-    print(f"[atm] Login: {'OK' if logged_in else 'FAILED'} (url={resp.url[:60]})")
+    # Fetch nonce from any school page (wp-login.php returns 404 on this site)
+    r0 = session.get(f"{BASE}/lista/warszawa/", timeout=10)
+    soup0 = BeautifulSoup(r0.text, "lxml")
+    nonce_input = soup0.find("input", id="pxp-signin-modal-security")
+    nonce = nonce_input["value"] if nonce_input else ""
+    resp = session.post(
+        f"{BASE}/wp-admin/admin-ajax.php",
+        data={
+            "action":      "resideo_user_signin",
+            "signin_user": login,
+            "signin_pass": password,
+            "security":    nonce,
+        },
+        headers={"Referer": f"{BASE}/lista/warszawa/", "X-Requested-With": "XMLHttpRequest"},
+        timeout=15,
+    )
+    try:
+        result = resp.json()
+        logged_in = result.get("signedin") is True or result.get("success") is True
+    except Exception:
+        logged_in = '"signedin":true' in resp.text or '"success":true' in resp.text
+    print(f"[atm] Login: {'OK' if logged_in else 'FAILED'} ({resp.text[:120]})")
     return logged_in
 
 
@@ -294,6 +306,7 @@ def _parse_school(html: str) -> dict:
         "czy_rzecznik_praw_ucznia":   ["rzecznik praw ucznia"],
         "czy_drukarka_dla_uczniow":   ["drukarka"],
         "czy_przystanek_mpk":         ["przystanek mpk", "przystanek komunikacji"],
+        "czy_silownia":               ["siłownia", "silownia"],
     }
     for flag, keywords in flags.items():
         data[flag] = 1 if any(kw in full_text for kw in keywords) else 0
@@ -340,7 +353,7 @@ def scrape_atmosfera(rspo_df: pd.DataFrame, engine: Engine) -> int:
         "czy_psycholog_na_etacie", "czy_pedagog_specjalny",
         "czy_winda", "czy_podjazd_dla_wozkow", "czy_monitoring",
         "czy_pielegniarka", "czy_rzecznik_praw_ucznia",
-        "czy_drukarka_dla_uczniow", "czy_przystanek_mpk",
+        "czy_drukarka_dla_uczniow", "czy_przystanek_mpk", "czy_silownia",
     ]
     df = pd.DataFrame(all_rows) if all_rows else pd.DataFrame(columns=COLS)
     for col in COLS:
