@@ -66,7 +66,7 @@ def create_engine_connection() -> Engine:
             "&TrustServerCertificate=yes"
         )
         try:
-            engine = create_engine(conn_str, fast_executemany=True)
+            engine = create_engine(conn_str)
             with engine.connect():
                 pass
             print(f"[DB] Connected via pyodbc → {SQL_SERVER}/{DATABASE}")
