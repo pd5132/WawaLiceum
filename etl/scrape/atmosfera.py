@@ -274,13 +274,14 @@ def _parse_school(html: str) -> dict:
     if m:
         data["liczba_ankiet"] = int(m.group(1))
 
-    # Average study time after school — "X godz Y min" or "Y min"
-    m = re.search(r"(\d+)\s*godz\w*\s*(\d+)\s*min", html, re.IGNORECASE)
+    # Average study time — HTML: <b>1</b><font> godz</font> <b>30</b><font> min</font>
+    page_text = soup.get_text(" ")
+    m = re.search(r"(\d+)\s*godz\w*\s*(\d+)\s*min", page_text, re.IGNORECASE)
     if m:
         data["czas_nauki_po_lekcjach_min"] = int(m.group(1)) * 60 + int(m.group(2))
     else:
-        m = re.search(r"(\d+)\s*min", html, re.IGNORECASE)
-        if m and "czas nauki" in html.lower():
+        m = re.search(r"czas nauki[^\n]{0,40}?(\d+)\s*min", page_text, re.IGNORECASE)
+        if m:
             data["czas_nauki_po_lekcjach_min"] = int(m.group(1))
 
     # Infrastructure flags from amenities list
@@ -344,7 +345,8 @@ def scrape_atmosfera(rspo_df: pd.DataFrame, engine: Engine) -> int:
         "rspo_szkoly", "site_id", "nazwa_szkoly",
         "matura_proc", "atmosfera_proc", "przyjemnosc_nauki_proc",
         "relacje_uczniow_proc", "relacja_nauczyciel_proc", "nowoczesnosc_zajec_proc",
-        "polecanie_szkoly_proc", "jakosc_odpoczynku_proc", "liczba_ankiet",
+        "polecanie_szkoly_proc", "jakosc_odpoczynku_proc",
+        "czas_nauki_po_lekcjach_min", "liczba_ankiet",
         "liczba_uczniow", "zdawalnosc_matur_proc",
         "czy_strefa_ciszy", "czy_miejsce_odpoczynku", "czy_ciche_dzwonki",
         "czy_rozowa_skrzyneczka", "czy_szafki_uczniow", "czy_stojak_na_rowery",

@@ -172,7 +172,7 @@ SELECT
     TRY_CAST(REPLACE(CAST(nowoczesnosc_zajec_proc AS varchar(20)), ',', '.') AS decimal(5,2)),
     TRY_CAST(polecanie_szkoly_proc AS decimal(5,2)),
     TRY_CAST(jakosc_odpoczynku_proc AS decimal(5,2)),
-    NULL,                                             -- czas_nauki_po_lekcjach_min: not scraped
+    TRY_CAST(czas_nauki_po_lekcjach_min AS int),
     TRY_CAST(liczba_ankiet AS int),
     ISNULL(TRY_CAST(czy_wifi_dla_uczniow     AS bit), 0),
     CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),  -- active methods: via Informator overlay
