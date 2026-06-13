@@ -14,6 +14,7 @@ PLAN_NABORU_FILE = DATA_DIR / "Plan naboru DO LICEUM 16.04.26.xlsx"
 PROGI_2023_PDF   = DATA_DIR / "minimalna liczba punktów 2023.pdf"
 PROGI_2024_PDF   = DATA_DIR / "Minimalna liczba punktów 2024 r..pdf"
 PROGI_2025_PDF   = DATA_DIR / "Minimalna liczba punktów_zakwalifikowani_2025.pdf"
+EM_XLSX_FILE     = DATA_DIR / "EM2023 - szkoły (aktualizacja 09.2024).xlsx"  # matura 2024 (rok_szkolny 2023/2024)
 
 SQL_SERVER   = r"LaptopAgi\MSSQLSERVER1"
 DATABASE     = "WawaLiceumDB"
