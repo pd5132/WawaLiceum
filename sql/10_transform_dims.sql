@@ -122,51 +122,67 @@ TRUNCATE TABLE dbo.Wymiar_Atmosfera;
 
 INSERT INTO dbo.Wymiar_Atmosfera (
     id_szkoly_rspo,
-    atmosfera_proc, przyjemnosc_nauki_proc, relacje_uczniow_proc,
-    relacja_nauczyciel_proc, nowoczesnosc_zajec_proc, polecanie_szkoly_proc,
-    jakosc_odpoczynku_proc, liczba_ankiet,
     czy_strefa_ciszy, czy_miejsce_odpoczynku, czy_ciche_dzwonki,
     czy_rozowa_skrzyneczka, czy_szafki_uczniow, czy_stojak_na_rowery,
-    czy_teren_zielony, czy_otwarte_boiska, czy_wifi_dla_uczniow, czy_sklepik_szkolny,
-    czy_bufet_stolowka, czy_psycholog_na_etacie, czy_pedagog_specjalny,
-    czy_winda, czy_podjazd_dla_wozkow, czy_monitoring,
-    czy_posilki_wegetarianskie, czy_posilki_weganskie,
-    czy_zrodlo_wody_pitnej, czy_wejscie_na_karty,
-    czy_rejestracja_gosci, czy_rzecznik_praw_ucznia,
-    czy_pielegniarka, czy_osoba_zaufania, czy_zajecia_tus,
-    czy_rewalidacja, czy_petla_indukcyjna, czy_schodolaz,
+    czy_teren_zielony, czy_otwarte_boiska,
+    czy_sklepik_szkolny, czy_bufet_stolowka,
+    czy_posilki_wegetarianskie, czy_posilki_weganskie, czy_zrodlo_wody_pitnej,
+    czy_monitoring, czy_wejscie_na_karty, czy_rejestracja_gosci,
+    czy_rzecznik_praw_ucznia, czy_pielegniarka,
+    czy_psycholog_na_etacie, czy_pedagog_specjalny,
+    czy_osoba_zaufania, czy_zajecia_tus, czy_rewalidacja,
+    czy_winda, czy_podjazd_dla_wozkow,
+    czy_petla_indukcyjna, czy_schodolaz,
+    atmosfera_proc, przyjemnosc_nauki_proc, relacje_uczniow_proc,
+    relacja_nauczyciel_proc, nowoczesnosc_zajec_proc,
+    polecanie_szkoly_proc, jakosc_odpoczynku_proc,
+    czas_nauki_po_lekcjach_min, liczba_ankiet,
+    czy_wifi_dla_uczniow,
     czy_metoda_projektu, czy_gry_edukacyjne, czy_ai_nowe_technologie,
-    czy_mapy_mysli, czy_edukacja_antydyskryminacyjna, czy_metoda_steam
+    czy_mapy_mysli, czy_edukacja_antydyskryminacyjna, czy_metoda_steam,
+    liczba_uczniow, czy_drukarka_dla_uczniow, czy_przystanek_mpk, czy_silownia
 )
 SELECT
     TRY_CAST(rspo_szkoly AS int),
-    TRY_CAST(atmosfera_proc           AS decimal(5,2)),
-    TRY_CAST(przyjemnosc_nauki_proc   AS decimal(5,2)),
-    TRY_CAST(relacje_uczniow_proc     AS decimal(5,2)),
-    TRY_CAST(relacja_nauczyciel_proc  AS decimal(5,2)),
-    TRY_CAST(nowoczesnosc_zajec_proc  AS decimal(5,2)),
-    TRY_CAST(polecanie_szkoly_proc    AS decimal(5,2)),
-    TRY_CAST(jakosc_odpoczynku_proc   AS decimal(5,2)),
-    TRY_CAST(liczba_ankiet            AS int),
-    ISNULL(TRY_CAST(czy_strefa_ciszy          AS bit), 0),
-    ISNULL(TRY_CAST(czy_miejsce_odpoczynku    AS bit), 0),
+    ISNULL(TRY_CAST(czy_strefa_ciszy         AS bit), 0),
+    ISNULL(TRY_CAST(czy_miejsce_odpoczynku   AS bit), 0),
     ISNULL(TRY_CAST(czy_ciche_dzwonki        AS bit), 0),
-    ISNULL(TRY_CAST(czy_rozowa_skrzyneczka    AS bit), 0),
-    ISNULL(TRY_CAST(czy_szafki_uczniow        AS bit), 0),
-    ISNULL(TRY_CAST(czy_stojak_na_rowery      AS bit), 0),
-    ISNULL(TRY_CAST(czy_teren_zielony         AS bit), 0),
-    ISNULL(TRY_CAST(czy_otwarte_boiska        AS bit), 0),
-    0,  -- czy_wifi_dla_uczniow: not in swiadomiewybieram, set via Informator overlay below
-    ISNULL(TRY_CAST(czy_sklepik_szkolny       AS bit), 0),
-    ISNULL(TRY_CAST(czy_bufet_stolowka        AS bit), 0),
-    ISNULL(TRY_CAST(czy_psycholog_na_etacie   AS bit), 0),
-    ISNULL(TRY_CAST(czy_pedagog_specjalny     AS bit), 0),
-    ISNULL(TRY_CAST(czy_winda                 AS bit), 0),
-    ISNULL(TRY_CAST(czy_podjazd_dla_wozkow    AS bit), 0),
-    ISNULL(TRY_CAST(czy_monitoring            AS bit), 0),
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  -- remaining flags default 0
-    0, 0, 0, 0, 0, 0  -- active methods: set via Informator overlay
-FROM dbo.stg_atmosfera;
+    ISNULL(TRY_CAST(czy_rozowa_skrzyneczka   AS bit), 0),
+    ISNULL(TRY_CAST(czy_szafki_uczniow       AS bit), 0),
+    ISNULL(TRY_CAST(czy_stojak_na_rowery     AS bit), 0),
+    ISNULL(TRY_CAST(czy_teren_zielony        AS bit), 0),
+    ISNULL(TRY_CAST(czy_otwarte_boiska       AS bit), 0),
+    ISNULL(TRY_CAST(czy_sklepik_szkolny      AS bit), 0),
+    ISNULL(TRY_CAST(czy_bufet_stolowka       AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),  -- posilki_wege/wegan/zrodlo_wody: via Informator overlay
+    ISNULL(TRY_CAST(czy_monitoring           AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit),                   -- wejscie_na_karty, rejestracja_gosci: via Informator
+    ISNULL(TRY_CAST(czy_rzecznik_praw_ucznia AS bit), 0),
+    ISNULL(TRY_CAST(czy_pielegniarka         AS bit), 0),
+    ISNULL(TRY_CAST(czy_psycholog_na_etacie  AS bit), 0),
+    ISNULL(TRY_CAST(czy_pedagog_specjalny    AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),  -- osoba_zaufania, zajecia_tus, rewalidacja
+    ISNULL(TRY_CAST(czy_winda                AS bit), 0),
+    ISNULL(TRY_CAST(czy_podjazd_dla_wozkow   AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit),                   -- petla_indukcyjna, schodolaz
+    TRY_CAST(atmosfera_proc AS decimal(5,2)),
+    TRY_CAST(przyjemnosc_nauki_proc AS decimal(5,2)),
+    TRY_CAST(relacje_uczniow_proc AS decimal(5,2)),
+    TRY_CAST(REPLACE(CAST(relacja_nauczyciel_proc AS varchar(20)), ',', '.') AS decimal(5,2)),
+    TRY_CAST(REPLACE(CAST(nowoczesnosc_zajec_proc AS varchar(20)), ',', '.') AS decimal(5,2)),
+    TRY_CAST(polecanie_szkoly_proc AS decimal(5,2)),
+    TRY_CAST(jakosc_odpoczynku_proc AS decimal(5,2)),
+    TRY_CAST(czas_nauki_po_lekcjach_min AS int),
+    TRY_CAST(liczba_ankiet AS int),
+    ISNULL(TRY_CAST(czy_wifi_dla_uczniow     AS bit), 0),
+    CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),  -- active methods: via Informator overlay
+    CAST(0 AS bit), CAST(0 AS bit), CAST(0 AS bit),
+    TRY_CAST(liczba_uczniow AS int),
+    ISNULL(TRY_CAST(czy_drukarka_dla_uczniow AS bit), 0),
+    ISNULL(TRY_CAST(czy_przystanek_mpk       AS bit), 0),
+    ISNULL(TRY_CAST(czy_silownia             AS bit), 0)
+FROM dbo.stg_atmosfera
+WHERE TRY_CAST(rspo_szkoly AS int) IN (SELECT id_szkoly_rspo FROM dbo.Wymiar_Szkola);
 
 -- Insert Wymiar_Atmosfera rows for schools that have Informator data but no swiadomiewybieram entry
 INSERT INTO dbo.Wymiar_Atmosfera (id_szkoly_rspo)

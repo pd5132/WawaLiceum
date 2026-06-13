@@ -29,6 +29,7 @@ Currently in design/planning phase: DB schema done, UX mockups done, no applicat
 - **swiadomywybieram.pl** — atmosphere ratings, soft indicators
 - **Ranking Perspektyw** — national school ranking
 - **waszaedukacja.pl** — supplemental school data
+- **mapa.wyniki.edu.pl/MapaEgzaminow/** — per-school matura results (OKE), XLSX download per year; source of EM2023 file (matura 2024, rok_szkolny 2023/2024) loaded into stg_matura
 
 ## Database Schema (Star Schema)
 

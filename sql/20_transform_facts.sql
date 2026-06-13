@@ -36,10 +36,13 @@ SELECT
     x.id_szkoly_rspo,
     c.id_czas,
     p.symbol_oddzialu,
-    MIN(p.nazwa_oddzialu),
+    ISNULL(MIN(p.nazwa_oddzialu), p.symbol_oddzialu),
     CASE
+        WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]DW]%' THEN 'D'
         WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]D]%'  THEN 'D'
         WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]MS]%' THEN 'MS'
+        WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]S]%'  THEN 'S'
+        WHEN MIN(p.nazwa_oddzialu) LIKE '%[[]M]%'  THEN 'M'
         ELSE 'O'
     END,
     MIN(p.prog_min),
