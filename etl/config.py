@@ -48,7 +48,7 @@ def create_engine_connection() -> Engine:
             f"mssql+pymssql://SA:{quote_plus(sa_pass)}"
             f"@localhost:1433/{DATABASE}"
         )
-        engine = create_engine(conn_str)
+        engine = create_engine(conn_str, insertmanyvalues_page_size=35)
         with engine.connect():
             pass
         print(f"[DB] Connected via pymssql → localhost:1433/{DATABASE}")
@@ -66,7 +66,7 @@ def create_engine_connection() -> Engine:
             "&TrustServerCertificate=yes"
         )
         try:
-            engine = create_engine(conn_str)
+            engine = create_engine(conn_str, insertmanyvalues_page_size=35)
             with engine.connect():
                 pass
             print(f"[DB] Connected via pyodbc → {SQL_SERVER}/{DATABASE}")
