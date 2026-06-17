@@ -8,6 +8,7 @@ Generuje 8 plików JSON do app/data/ używanych przez PWA.
 """
 
 import json
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -17,10 +18,22 @@ from etl.config import create_engine_connection
 OUT_DIR = Path(__file__).parent.parent / "app" / "data"
 
 
-def _dump(data: list, filename: str) -> None:
+def _clean(val):
+    """Replace float NaN/Inf with None so json.dumps produces valid JSON null."""
+    if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+        return None
+    return val
+
+
+def _dump(df_or_list, filename: str) -> None:
+    if isinstance(df_or_list, pd.DataFrame):
+        data = df_or_list.to_dict(orient="records")
+    else:
+        data = df_or_list
+    cleaned = [{k: _clean(v) for k, v in row.items()} for row in data]
     path = OUT_DIR / filename
-    path.write_text(json.dumps(data, ensure_ascii=False, default=str), encoding="utf-8")
-    print(f"  [OK] {filename}  ({len(data)} wierszy)")
+    path.write_text(json.dumps(cleaned, ensure_ascii=False, default=str), encoding="utf-8")
+    print(f"  [OK] {filename}  ({len(cleaned)} wierszy)")
 
 
 def export_schools(engine) -> None:
@@ -43,7 +56,7 @@ def export_schools(engine) -> None:
         """,
         engine,
     )
-    _dump(df.where(df.notna(), None).to_dict(orient="records"), "schools.json")
+    _dump(df, "schools.json")
 
 
 def export_thresholds(engine) -> None:
@@ -63,7 +76,7 @@ def export_thresholds(engine) -> None:
         """,
         engine,
     )
-    _dump(df.where(df.notna(), None).to_dict(orient="records"), "thresholds.json")
+    _dump(df, "thresholds.json")
 
 
 def export_ewd(engine) -> None:
@@ -87,7 +100,7 @@ def export_ewd(engine) -> None:
         """,
         engine,
     )
-    _dump(df.where(df.notna(), None).to_dict(orient="records"), "ewd.json")
+    _dump(df, "ewd.json")
 
 
 def export_ranking(engine) -> None:
@@ -104,7 +117,7 @@ def export_ranking(engine) -> None:
         """,
         engine,
     )
-    _dump(df.where(df.notna(), None).to_dict(orient="records"), "ranking.json")
+    _dump(df, "ranking.json")
 
 
 def export_matura(engine) -> None:
@@ -125,7 +138,7 @@ def export_matura(engine) -> None:
         """,
         engine,
     )
-    _dump(df.where(df.notna(), None).to_dict(orient="records"), "matura.json")
+    _dump(df, "matura.json")
 
 
 def export_atmosfera(engine) -> None:
@@ -164,7 +177,7 @@ def export_atmosfera(engine) -> None:
     # Zamień BIT (0/1) na bool
     bit_cols = [c for c in df.columns if c.startswith("czy_")]
     df[bit_cols] = df[bit_cols].astype(bool)
-    _dump(df.where(df.notna(), None).to_dict(orient="records"), "atmosfera.json")
+    _dump(df, "atmosfera.json")
 
 
 def export_inicjatywy(engine) -> None:
@@ -180,7 +193,7 @@ def export_inicjatywy(engine) -> None:
         """,
         engine,
     )
-    _dump(df.where(df.notna(), None).to_dict(orient="records"), "inicjatywy.json")
+    _dump(df, "inicjatywy.json")
 
 
 def export_plan_naboru(engine) -> None:
@@ -199,7 +212,7 @@ def export_plan_naboru(engine) -> None:
         """,
         engine,
     )
-    _dump(df.where(df.notna(), None).to_dict(orient="records"), "plan_naboru.json")
+    _dump(df, "plan_naboru.json")
 
 
 def main() -> None:
