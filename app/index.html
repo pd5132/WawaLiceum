@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#059669">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="WawaLiceum">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>WawaLiceum</title>
+
+  <!-- Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CDN z konfiguracją -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { jakarta: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          colors: {
+            primary:  { DEFAULT: '#059669', dark: '#047857', light: '#A7F3D0' },
+            accent:   '#F59E0B',
+            high:     '#22C55E',
+            medium:   '#FB923C',
+            dream:    '#EF4444',
+            bg:       '#F0FDF9',
+            surface:  '#FFFFFF',
+            border:   '#D1FAE5',
+            ink:      '#064E3B',
+            muted:    '#6B7280',
+          },
+          keyframes: {
+            scaleIn:  { from: { transform: 'scale(0.8)', opacity: '0' }, to: { transform: 'scale(1)', opacity: '1' } },
+            slideUp:  { from: { transform: 'translateY(20px)', opacity: '0' }, to: { transform: 'translateY(0)', opacity: '1' } },
+            barFill:  { from: { transform: 'scaleX(0)' }, to: { transform: 'scaleX(1)' } },
+            fadeIn:   { from: { opacity: '0' }, to: { opacity: '1' } },
+          },
+          animation: {
+            scaleIn:  'scaleIn 0.6s ease-out both',
+            slideUp:  'slideUp 0.4s ease-out both',
+            slideUp2: 'slideUp 0.4s ease-out 0.2s both',
+            slideUp3: 'slideUp 0.4s ease-out 0.4s both',
+            barFill:  'barFill 0.8s ease-out 0.2s both',
+            fadeIn:   'fadeIn 0.3s ease both',
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet (mapa) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F0FDF9; overscroll-behavior: none; }
+    .screen { display: none; flex-direction: column; min-height: 100dvh; }
+    .screen.active { display: flex; }
+    .pb-nav { padding-bottom: calc(4rem + env(safe-area-inset-bottom)); }
+    #map { height: 100%; min-height: 400px; }
+    input[type=range]::-webkit-slider-thumb { accent-color: #059669; }
+  </style>
+</head>
+<body class="bg-bg text-ink">
+
+  <!-- ===================== SCREEN 0: SPLASH ===================== -->
+  <div id="screen-splash" class="screen active items-center justify-center bg-gradient-to-b from-primary to-primary-dark">
+    <div class="flex flex-col items-center gap-6 px-8 text-center">
+      <!-- Logo -->
+      <div class="animate-scaleIn w-24 h-24 rounded-3xl bg-white/20 backdrop-blur flex items-center justify-center shadow-xl">
+        <span class="text-4xl font-bold text-white">WL</span>
+      </div>
+      <div class="animate-slideUp2">
+        <h1 class="text-3xl font-bold text-white">WawaLiceum</h1>
+        <p class="mt-2 text-primary-light text-sm leading-relaxed">Znajdź swoje wymarzone liceum<br>w Warszawie</p>
+      </div>
+      <button onclick="App.navigate('kalkulator')"
+        class="animate-slideUp3 mt-4 w-full max-w-xs bg-white text-primary font-semibold py-3.5 rounded-2xl shadow-lg active:scale-95 transition-transform">
+        Zacznij
+      </button>
+      <p id="splash-status" class="animate-slideUp3 text-primary-light text-xs mt-2">Ładowanie danych…</p>
+    </div>
+  </div>
+
+  <!-- ===================== SCREEN 1: KALKULATOR ===================== -->
+  <div id="screen-kalkulator" class="screen flex-col">
+    <header class="sticky top-0 z-10 bg-surface border-b border-border px-4 py-3 shadow-sm">
+      <h1 class="text-lg font-semibold text-ink">Kalkulator punktów</h1>
+    </header>
+
+    <main class="flex-1 overflow-y-auto pb-nav px-4 py-4 space-y-4">
+
+      <!-- Wynik -->
+      <div class="bg-primary rounded-2xl p-5 text-center text-white shadow-md">
+        <p class="text-sm font-medium opacity-80">Twój wynik</p>
+        <p id="score-display" class="text-5xl font-bold mt-1 tabular-nums">0</p>
+        <p class="text-sm opacity-80 mt-1">/ 200 pkt</p>
+      </div>
+
+      <!-- Egzamin 8-klasisty -->
+      <section class="bg-surface rounded-2xl border border-border p-4 space-y-3">
+        <h2 class="text-sm font-semibold text-ink">Egzamin ósmoklasisty</h2>
+        <p class="text-xs text-muted -mt-1">Wpisz wynik procentowy z każdego przedmiotu</p>
+
+        <div class="space-y-3">
+          <label class="block">
+            <span class="text-xs font-medium text-muted">Język polski (%)</span>
+            <div class="flex items-center gap-3 mt-1">
+              <input id="e-pol" type="range" min="0" max="100" value="0" oninput="App.calcScore()" class="flex-1 accent-primary">
+              <span id="e-pol-val" class="w-8 text-right text-sm font-semibold text-ink">0</span>
+            </div>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-muted">Matematyka (%)</span>
+            <div class="flex items-center gap-3 mt-1">
+              <input id="e-mat" type="range" min="0" max="100" value="0" oninput="App.calcScore()" class="flex-1 accent-primary">
+              <span id="e-mat-val" class="w-8 text-right text-sm font-semibold text-ink">0</span>
+            </div>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-muted">Język obcy (%)</span>
+            <div class="flex items-center gap-3 mt-1">
+              <input id="e-ang" type="range" min="0" max="100" value="0" oninput="App.calcScore()" class="flex-1 accent-primary">
+              <span id="e-ang-val" class="w-8 text-right text-sm font-semibold text-ink">0</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Świadectwo -->
+      <section class="bg-surface rounded-2xl border border-border p-4 space-y-3">
+        <h2 class="text-sm font-semibold text-ink">Świadectwo</h2>
+        <p class="text-xs text-muted -mt-1">Oceny końcowe z 7 klasy (lub klasy 8)</p>
+
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs font-medium text-muted">Język polski</span>
+            <select id="g-pol" onchange="App.calcScore()" class="mt-1 w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="0">— wybierz —</option>
+              <option value="2">Dopuszczający (2)</option>
+              <option value="8">Dostateczny (3)</option>
+              <option value="14">Dobry (4)</option>
+              <option value="17">Bardzo dobry (5)</option>
+              <option value="18">Celujący (6)</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-muted">Matematyka</span>
+            <select id="g-mat" onchange="App.calcScore()" class="mt-1 w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="0">— wybierz —</option>
+              <option value="2">Dopuszczający (2)</option>
+              <option value="8">Dostateczny (3)</option>
+              <option value="14">Dobry (4)</option>
+              <option value="17">Bardzo dobry (5)</option>
+              <option value="18">Celujący (6)</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-muted">Przedmiot profilowy 1</span>
+            <select id="g-p1" onchange="App.calcScore()" class="mt-1 w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="0">— wybierz —</option>
+              <option value="2">Dopuszczający (2)</option>
+              <option value="8">Dostateczny (3)</option>
+              <option value="14">Dobry (4)</option>
+              <option value="17">Bardzo dobry (5)</option>
+              <option value="18">Celujący (6)</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-muted">Przedmiot profilowy 2</span>
+            <select id="g-p2" onchange="App.calcScore()" class="mt-1 w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="0">— wybierz —</option>
+              <option value="2">Dopuszczający (2)</option>
+              <option value="8">Dostateczny (3)</option>
+              <option value="14">Dobry (4)</option>
+              <option value="17">Bardzo dobry (5)</option>
+              <option value="18">Celujący (6)</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <!-- Dodatkowe punkty -->
+      <section class="bg-surface rounded-2xl border border-border p-4 space-y-3">
+        <h2 class="text-sm font-semibold text-ink">Dodatkowe punkty</h2>
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input id="extra-stripe" type="checkbox" onchange="App.calcScore()" class="w-4 h-4 accent-primary rounded">
+            <span class="text-sm text-ink">Świadectwo z wyróżnieniem <span class="text-muted">(+7 pkt)</span></span>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input id="extra-vol" type="checkbox" onchange="App.calcScore()" class="w-4 h-4 accent-primary rounded">
+            <span class="text-sm text-ink">Wolontariat <span class="text-muted">(+3 pkt)</span></span>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-muted">Olimpiady / konkursy kuratoryjne (pkt, max 18)</span>
+            <input id="extra-comp" type="number" min="0" max="18" value="0" oninput="App.calcScore()"
+              class="mt-1 w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary">
+          </label>
+        </div>
+      </section>
+
+      <!-- Profil (opcjonalny) -->
+      <section class="bg-surface rounded-2xl border border-border p-4">
+        <h2 class="text-sm font-semibold text-ink">Jaki profil Cię interesuje? <span class="text-muted font-normal">(opcjonalnie)</span></h2>
+        <select id="profile-select" onchange="App.onProfileChange()"
+          class="mt-2 w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary">
+          <option value="">— wszystkie profile —</option>
+        </select>
+      </section>
+
+      <!-- Twoja Analiza -->
+      <section id="analiza-block" class="bg-primary/10 border border-primary/20 rounded-2xl p-4 space-y-2 hidden">
+        <h2 class="text-sm font-semibold text-ink">Twoja Analiza</h2>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-green-100 rounded-xl py-2">
+            <p id="analiza-high" class="text-xl font-bold text-green-700">—</p>
+            <p class="text-xs text-green-600">Wysokie szanse</p>
+          </div>
+          <div class="bg-orange-100 rounded-xl py-2">
+            <p id="analiza-medium" class="text-xl font-bold text-orange-700">—</p>
+            <p class="text-xs text-orange-600">Realistyczne</p>
+          </div>
+          <div class="bg-red-100 rounded-xl py-2">
+            <p id="analiza-dream" class="text-xl font-bold text-red-700">—</p>
+            <p class="text-xs text-red-600">Szkoły marzeń</p>
+          </div>
+        </div>
+      </section>
+
+      <button onclick="App.navigate('szukaj')"
+        class="w-full bg-primary text-white font-semibold py-3.5 rounded-2xl shadow-md active:scale-95 transition-transform">
+        Szukaj szkół →
+      </button>
+    </main>
+  </div>
+
+  <!-- ===================== SCREEN 2: SZUKAJ ===================== -->
+  <div id="screen-szukaj" class="screen flex-col">
+    <header class="sticky top-0 z-10 bg-surface border-b border-border px-4 py-3 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h1 class="text-lg font-semibold text-ink">Szukaj szkół</h1>
+        <!-- Toggle Lista/Mapa -->
+        <div class="flex rounded-xl overflow-hidden border border-border text-xs font-semibold">
+          <button id="toggle-lista" onclick="App.setView('lista')"
+            class="px-3 py-1.5 bg-primary text-white transition-colors">Lista</button>
+          <button id="toggle-mapa" onclick="App.setView('mapa')"
+            class="px-3 py-1.5 text-muted transition-colors">Mapa</button>
+        </div>
+      </div>
+      <!-- Filtry -->
+      <div class="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide">
+        <select id="filter-dzielnica" onchange="App.applyFilters()"
+          class="flex-shrink-0 rounded-full border border-border bg-bg px-3 py-1 text-xs font-medium text-ink focus:outline-none">
+          <option value="">Dzielnica</option>
+        </select>
+        <select id="filter-profil" onchange="App.applyFilters()"
+          class="flex-shrink-0 rounded-full border border-border bg-bg px-3 py-1 text-xs font-medium text-ink focus:outline-none">
+          <option value="">Profil</option>
+        </select>
+        <select id="filter-jezyk" onchange="App.applyFilters()"
+          class="flex-shrink-0 rounded-full border border-border bg-bg px-3 py-1 text-xs font-medium text-ink focus:outline-none">
+          <option value="">Język dwujęzyczny</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- Widok lista -->
+    <div id="view-lista" class="flex-1 overflow-y-auto pb-nav px-4 py-3">
+      <div id="schools-list" class="space-y-3">
+        <p class="text-center text-muted text-sm py-8">Ładowanie szkół…</p>
+      </div>
+    </div>
+
+    <!-- Widok mapa -->
+    <div id="view-mapa" class="flex-1 hidden">
+      <div id="map" class="w-full h-full"></div>
+    </div>
+  </div>
+
+  <!-- ===================== SCREEN 3: KARTA LICEUM ===================== -->
+  <div id="screen-karta" class="screen flex-col">
+    <header class="sticky top-0 z-10 bg-surface border-b border-border px-4 py-3 shadow-sm flex items-center gap-3">
+      <button onclick="App.goBack()" class="p-1 -ml-1 text-muted active:text-ink">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div class="flex-1 min-w-0">
+        <h1 id="karta-nazwa" class="text-base font-semibold text-ink truncate">—</h1>
+        <p id="karta-dzielnica" class="text-xs text-muted">—</p>
+      </div>
+      <span id="karta-ranking-badge" class="hidden items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <span id="karta-ranking-text">—</span>
+      </span>
+      <span id="karta-chance-badge" class="hidden px-2.5 py-1 rounded-full text-xs font-semibold">—</span>
+    </header>
+
+    <main class="flex-1 overflow-y-auto pb-nav px-4 py-4 space-y-4">
+
+      <!-- Progi punktowe -->
+      <section class="bg-surface rounded-2xl border border-border p-4">
+        <h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Progi punktowe</h2>
+        <div id="karta-progi" class="space-y-2">
+          <p class="text-sm text-muted">Brak danych</p>
+        </div>
+      </section>
+
+      <!-- EWD Humanistyczny -->
+      <section class="bg-surface rounded-2xl border border-border p-4">
+        <h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">EWD Humanistyczny</h2>
+        <div id="karta-ewd-hum" class="space-y-1">
+          <p class="text-sm text-muted">Brak danych</p>
+        </div>
+      </section>
+
+      <!-- EWD Matematyczny -->
+      <section class="bg-surface rounded-2xl border border-border p-4">
+        <h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">EWD Matematyczno-Przyrodniczy</h2>
+        <div id="karta-ewd-mat" class="space-y-1">
+          <p class="text-sm text-muted">Brak danych</p>
+        </div>
+      </section>
+
+      <!-- Matura -->
+      <section class="bg-surface rounded-2xl border border-border p-4">
+        <h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Wyniki maturalne</h2>
+        <div id="karta-matura" class="space-y-2">
+          <p class="text-sm text-muted">Brak danych</p>
+        </div>
+      </section>
+
+      <!-- Atmosfera -->
+      <section class="bg-surface rounded-2xl border border-border p-4">
+        <h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Atmosfera</h2>
+        <div id="karta-atmosfera" class="space-y-1">
+          <p class="text-sm text-muted">Brak danych</p>
+        </div>
+      </section>
+
+      <!-- Inicjatywy zewnętrzne -->
+      <section id="karta-inicjatywy-section" class="bg-surface rounded-2xl border border-border p-4 hidden">
+        <h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Inicjatywy zewnętrzne</h2>
+        <div id="karta-inicjatywy" class="flex flex-wrap gap-2"></div>
+      </section>
+
+      <!-- Kontakt -->
+      <section class="bg-surface rounded-2xl border border-border p-4">
+        <h2 class="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Kontakt</h2>
+        <div id="karta-kontakt" class="space-y-1 text-sm text-ink">
+          <p class="text-muted">Brak danych</p>
+        </div>
+      </section>
+
+      <!-- Przyciski akcji -->
+      <div class="flex gap-3">
+        <button id="karta-btn-lista" onclick="App.toggleLista()"
+          class="flex-1 border-2 border-primary text-primary font-semibold py-3 rounded-2xl active:scale-95 transition-transform text-sm">
+          + Dodaj do listy
+        </button>
+        <button id="karta-btn-porownaj" onclick="App.togglePorownaj()"
+          class="flex-1 border-2 border-border text-muted font-semibold py-3 rounded-2xl active:scale-95 transition-transform text-sm">
+          Porównaj
+        </button>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ===================== SCREEN 4: MOJA LISTA ===================== -->
+  <div id="screen-lista" class="screen flex-col">
+    <header class="sticky top-0 z-10 bg-surface border-b border-border px-4 py-3 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h1 class="text-lg font-semibold text-ink">Moja Lista</h1>
+        <button onclick="App.exportPDF()" class="text-xs font-medium text-primary px-3 py-1.5 border border-primary rounded-full active:bg-primary/10">
+          Eksport PDF
+        </button>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto pb-nav px-4 py-3 space-y-3">
+
+      <!-- Ostrzeżenie Vulcan -->
+      <div id="vulcan-warning" class="hidden items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+        <svg class="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <p class="text-xs text-amber-800">Twoje top 3 pozycje to same <strong>Szkoły marzeń</strong>. Dodaj szkołę z <strong>Wysokimi szansami</strong> na końcu listy — Vulcan wymaga przynajmniej jednej realistycznej opcji.</p>
+      </div>
+
+      <!-- Lista szkół (drag & drop) -->
+      <div id="lista-items" class="space-y-2">
+        <div class="text-center py-12 text-muted">
+          <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+          </svg>
+          <p class="text-sm">Lista jest pusta</p>
+          <p class="text-xs mt-1">Dodaj szkoły w ekranie Szukaj lub Karta</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================== SCREEN 5: POROWNYWARKA ===================== -->
+  <div id="screen-porownywarka" class="screen flex-col">
+    <header class="sticky top-0 z-10 bg-surface border-b border-border px-4 py-3 shadow-sm">
+      <h1 class="text-lg font-semibold text-ink">Porównywarka</h1>
+      <p class="text-xs text-muted mt-0.5">Wybierz do 4 szkół do porównania</p>
+    </header>
+
+    <main class="flex-1 overflow-x-auto pb-nav">
+      <div id="porownywarka-content" class="min-w-full">
+        <div class="text-center py-12 text-muted px-4">
+          <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <p class="text-sm">Brak szkół do porównania</p>
+          <p class="text-xs mt-1">Dodaj szkoły do porównania w karcie szkoły</p>
+          <button onclick="App.navigate('szukaj')" class="mt-4 text-xs font-semibold text-primary border border-primary px-4 py-2 rounded-full">
+            Szukaj szkół
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================== NAWIGACJA DOLNA ===================== -->
+  <nav id="bottom-nav" class="hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50"
+       style="padding-bottom: env(safe-area-inset-bottom)">
+    <div class="flex justify-around items-center h-16">
+      <button onclick="App.navigate('kalkulator')" data-nav="kalkulator"
+        class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors text-muted">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3M16 3h5m0 0v5m0-5L10 14"/>
+        </svg>
+        <span class="text-[10px] font-medium">Kalkulator</span>
+      </button>
+      <button onclick="App.navigate('szukaj')" data-nav="szukaj"
+        class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors text-muted">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <span class="text-[10px] font-medium">Szukaj</span>
+      </button>
+      <button onclick="App.navigate('lista')" data-nav="lista"
+        class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors text-muted">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <span class="text-[10px] font-medium">Moja Lista</span>
+      </button>
+      <button onclick="App.navigate('porownywarka')" data-nav="porownywarka"
+        class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors text-muted">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span class="text-[10px] font-medium">Porównaj</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- JS -->
+  <script src="js/calculator.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
