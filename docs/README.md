@@ -65,4 +65,3 @@ Interfejs mobilny oparty jest na standardzie Material Design 3 i zorganizowany w
 - Ekran 4: Moja Lista – Panel układania własnej listy preferencji rekrutacyjnych (od 1 do 5) z interfejsem Drag & Drop, ułatwiający przygotowanie do rejestracji w oficjalnym systemie Vulcan. Umożliwia eksport listy do PDF (format Vulcan). System ostrzega użytkownika, gdy lista zawiera zbyt wiele szkół marzeń bez szkół bezpiecznych na końcu.
 - Ekran 5: Porównywarka – Tabela zestawiająca do 4 wybranych szkół kolumnowo pod kątem kryteriów twardych (progi na profile, 3-letnie EWD bloku humanistycznego/matematycznego, wyniki matur) i miękkich (hałas z mapy klimatycznej m.st. Warszawy, wielkość klas pierwszych, dostępność psychologa).
 Ekranu 2).
-3. Analizować zapytania pod kątem optymalizacji relacyjnej i wydajności w środowisku MS SQL Server.
