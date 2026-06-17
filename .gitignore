@@ -5,7 +5,7 @@ Thumbs.db
 !etl/match/overrides.csv
 *.pdf
 *.txt
-Data/
+/Data/
 .DS_Store
 # Python / uv
 .venv/
