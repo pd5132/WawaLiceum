@@ -46,7 +46,7 @@ def create_engine_connection() -> Engine:
         from urllib.parse import quote_plus
         conn_str = (
             f"mssql+pymssql://SA:{quote_plus(sa_pass)}"
-            f"@localhost:1433/{DATABASE}"
+            f"@localhost:1433/{DATABASE}?charset=utf8"
         )
         engine = create_engine(conn_str, insertmanyvalues_page_size=35)
         with engine.connect():
