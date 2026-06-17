@@ -85,20 +85,29 @@ Certificate (max 100 pts):
 | # | Screen | Key feature |
 |---|--------|-------------|
 | 0 | Splash | Async dictionary load from DB |
-| 1 | Kalkulator | Exam/grade inputs → score + "Twoja Analiza" card (decile level, suggested profiles) |
-| 2 | Lista Liceow | Filters (Dzielnica/Profil/Jezyk) + 3-tier chance badge: high / medium / dream school |
-| 3 | Karta Liceum | EWD (hum + mat blocks), class offers, 5-year threshold trend chart per profile |
-| 4 | Moja Lista | Drag & Drop preference ranking (1-5) + PDF export for Vulcan + safety school warning |
-| 5 | Porownywarka | Side-by-side (up to 4 schools): hard criteria (thresholds, EWD, matura) + soft (noise, class size, psychologist) |
+| 1 | Kalkulator | Exam/grade inputs → score + optional profile dropdown + "Twoja Analiza" (count of reachable schools per tier) |
+| 2 | Szukaj | Filters (Dzielnica/Profil/Jezyk) + toggle Lista/Mapa + 3-tier chance badge |
+| 3 | Karta Liceum | Ranking Perspektyw badge, EWD (hum + mat blocks separately), contact links, external initiatives, threshold trend (always latest year) |
+| 4 | Moja Lista | Drag & Drop (1-5) + PDF/Vulcan export + safety-school warning banner |
+| 5 | Porownywarka | Side-by-side (up to 4): thresholds, Ranking Perspektyw, EWD, matura, atmosphere, external initiatives |
 
 Nav: persistent bottom bar — Kalkulator | Szukaj | Moja Lista | Porownaj
 
-**Chance tiers (Screen 2 badge logic):**
-- High chance: score comfortably above historical threshold
-- Medium/realistic: score within range of threshold
-- Dream school: score below threshold (high risk)
+**Chance tiers — UNIFIED across all screens:**
 
-**Vulcan warning (Screen 4):** warn user when list has too many dream schools at top without safety schools at the end.
+| Polish name | Color | Hex | Logic |
+|-------------|-------|-----|-------|
+| Wysokie szanse | Green | `#22C55E` | score > threshold + 10 pts |
+| Realistyczna | Orange | `#FB923C` | score within ±10 pts of threshold |
+| Szkoła marzeń | Red | `#EF4444` | score < threshold − 10 pts |
+
+Use these exact labels everywhere (Szukaj, Karta, Moja Lista, Porownywarka). No other badge variants.
+
+**Vulcan warning (Screen 4):** warn user when top 3 positions are all "Szkoła marzeń" with no "Wysokie szanse" anywhere on the list.
+
+**Threshold year rule:** always display MAX available `rok_kalendarzowy` per school. No year picker in UI.
+
+**Profile dropdown (Screen 1):** optional field "Jaki profil Cię interesuje?" with values from `Fakt_Plan_Naboru.typ_oddzialu`. Selection propagates to Screen 2 (pre-fills Profil filter) and Screen 3 (filters "Zbieżne z Twoim profilem" section). If not selected, Screen 3 shows top 3 profiles by highest threshold.
 
 ## Key Files
 
@@ -109,6 +118,8 @@ Nav: persistent bottom bar — Kalkulator | Szukaj | Moja Lista | Porownaj
 | `docs/db/SkryptDDL.sql` | DB creation script for `WawaLiceumDB` |
 | `docs/db/Diagram_encji.png` | ER diagram |
 | `docs/ux/` | 6 Figma mockup exports (numbered 1-6) |
+| `docs/ux/design-system.md` | Color tokens, typography, animation specs — reference for Rider implementation |
+| `docs/USE_CASE.md` | Use cases for all 6 screens |
 | `Data/skrypt_etl.py` | ETL script |
 | `Data/Matury 2025 *.csv` | Raw matura data (basic + extended) |
 
@@ -119,10 +130,33 @@ Key analytical questions the DWH must support:
 - Humanities profile schools with threshold <165 pts but positive humanities EWD ("hidden gems")
 - Correlation between modern infrastructure (Climate Map) and atmosphere ratings
 
+## Design System
+
+See `docs/ux/design-system.md` for full token reference. Summary:
+
+| Token | Value |
+|-------|-------|
+| Primary | `#059669` emerald |
+| Primary dark | `#047857` |
+| Background | `#F0FDF9` mint cream |
+| Surface | `#FFFFFF` |
+| Accent (ranking/stars) | `#F59E0B` amber |
+| Wysokie szanse badge | `#22C55E` green |
+| Realistyczna badge | `#FB923C` orange |
+| Szkoła marzeń badge | `#EF4444` red |
+| Text primary | `#064E3B` |
+| Text secondary | `#6B7280` |
+| Border | `#D1FAE5` |
+
+Font: **Plus Jakarta Sans** (Google Fonts) — replaces Roboto.
+
 ## Working Conventions
 
 - T-SQL queries must follow star schema above — join through fact table, filter on dimension tables.
 - Score from Screen 1 (Kalkulator) propagates to Screen 2 (Lista) for chance badge — treat as shared session state.
-- EWD in Karta Liceum splits into humanistyczne and matematyczne blocks.
+- EWD in Karta Liceum: two separate blocks — humanistyczny and matematyczny (`id_typu_ewd` FK to `Wymiar_Typ_EWD`). Each block shows point estimate + confidence bounds.
+- Ranking Perspektyw (`pozycja_w_rankingu`) shown on Karta Liceum header and Porownywarka. Source: `Fakt_Ranking_Perspektywy`, latest year.
+- External initiatives (Erasmus+, IB, UNESCO): shown as chips on Karta Liceum and Porownywarka. Source: `Mostek_Szkola_Inicjatywy` JOIN `Wymiar_Inicjatywy_Zewnetrzne`.
+- Map view (Screen 2): school pins from `Wymiar_Szkola.wspolrzedne_lat/long`, colored by chance tier.
 - No application code exists yet — when generating code, match Material Design 3 and Tailwind CSS conventions.
 - IDE: JetBrains Rider.
