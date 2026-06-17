@@ -63,7 +63,7 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F0FDF9; overscroll-behavior: none; color: #064E3B; }
     .screen { display: none; flex-direction: column; min-height: 100dvh; }
     .screen.active { display: flex; }
-    .pb-nav { padding-bottom: calc(4rem + env(safe-area-inset-bottom)); }
+    .pb-nav { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
     #map { height: 100%; min-height: 400px; }
     input[type=range] { accent-color: #059669; }
 
@@ -292,7 +292,7 @@
         </select>
         <select id="filter-jezyk" onchange="App.applyFilters()"
           class="flex-shrink-0 rounded-full border border-border bg-bg px-3 py-1 text-xs font-medium text-ink focus:outline-none">
-          <option value="">Język dwujęzyczny</option>
+          <option value="">Drugi język</option>
         </select>
       </div>
     </header>
@@ -475,19 +475,19 @@
         </svg>
         <span class="text-[10px] font-medium">Szukaj</span>
       </button>
-      <button onclick="App.navigate('lista')" data-nav="lista"
-        class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors text-muted">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-        </svg>
-        <span class="text-[10px] font-medium">Moja Lista</span>
-      </button>
       <button onclick="App.navigate('porownywarka')" data-nav="porownywarka"
         class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors text-muted">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
         <span class="text-[10px] font-medium">Porównaj</span>
+      </button>
+      <button onclick="App.navigate('lista')" data-nav="lista"
+        class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors text-muted">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <span class="text-[10px] font-medium">Moja Lista</span>
       </button>
     </div>
   </nav>
