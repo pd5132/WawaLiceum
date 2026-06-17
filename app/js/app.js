@@ -574,6 +574,9 @@ const App = (() => {
   // --- Init ---
   async function init() {
     if ('serviceWorker' in navigator) {
+      // Wyrejestruj stare SW przed instalacją nowego (czyści zakeszowane błędy)
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 

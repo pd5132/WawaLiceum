@@ -20,7 +20,7 @@ const Data = (() => {
 
   async function fetchJSON(name) {
     const url = DATA_BASE + name;
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-cache' });
     if (!res.ok) throw new Error(`Nie można załadować: ${url} (status ${res.status})`);
     return res.json();
   }
