@@ -607,7 +607,7 @@ const App = (() => {
 
       setTimeout(() => navigate('kalkulator'), 800);
     } catch (err) {
-      status.textContent = 'Błąd ładowania danych. Sprawdź połączenie.';
+      status.textContent = err.message || 'Błąd ładowania danych.';
       console.error(err);
     }
   }
