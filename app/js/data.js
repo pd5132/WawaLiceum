@@ -19,18 +19,15 @@ const Data = (() => {
   }
 
   async function load() {
-    // Ładujemy wszystkie pliki równolegle
-    [schools, thresholds, ewd, ranking, matura, atmosfera, inicjatywy, planNaboru] =
-      await Promise.all([
-        fetchJSON('./data/schools.json'),
-        fetchJSON('./data/thresholds.json'),
-        fetchJSON('./data/ewd.json'),
-        fetchJSON('./data/ranking.json'),
-        fetchJSON('./data/matura.json'),
-        fetchJSON('./data/atmosfera.json'),
-        fetchJSON('./data/inicjatywy.json'),
-        fetchJSON('./data/plan_naboru.json'),
-      ]);
+    // Ładujemy pliki sekwencyjnie żeby łatwiej zlokalizować błąd
+    schools    = await fetchJSON('./data/schools.json');
+    thresholds = await fetchJSON('./data/thresholds.json');
+    ewd        = await fetchJSON('./data/ewd.json');
+    ranking    = await fetchJSON('./data/ranking.json');
+    matura     = await fetchJSON('./data/matura.json');
+    atmosfera  = await fetchJSON('./data/atmosfera.json');
+    inicjatywy = await fetchJSON('./data/inicjatywy.json');
+    planNaboru = await fetchJSON('./data/plan_naboru.json');
 
     // Denormalizuj: dołącz prog_min (max rok), ranking_pozycja (max rok) do każdej szkoły
     schools = schools.map(s => {

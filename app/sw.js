@@ -1,4 +1,4 @@
-const CACHE = 'wawaliceum-v1';
+const CACHE = 'wawaliceum-v3';
 
 const PRECACHE = [
   './',
