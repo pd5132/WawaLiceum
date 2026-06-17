@@ -74,12 +74,12 @@ def export_ewd(engine) -> None:
             c.rok_kalendarzowy,
             t.nazwa_egzaminu,
             t.rodzaj_zapisu,
-            CAST(f.ewd_oszacowanie_punktowe AS FLOAT) AS ewd_oszacowanie_punktowe,
-            CAST(f.ewd_upper               AS FLOAT) AS ewd_upper,
-            CAST(f.ewd_lower               AS FLOAT) AS ewd_lower,
-            CAST(f.egzamin_oszacowanie     AS FLOAT) AS egzamin_oszacowanie,
-            CAST(f.egzamin_upper           AS FLOAT) AS egzamin_upper,
-            CAST(f.egzamin_lower           AS FLOAT) AS egzamin_lower
+            CAST(f.ewd_oszacowanie_punktowe        AS FLOAT) AS ewd_oszacowanie_punktowe,
+            CAST(f.ewd_gorna_granica_ufnosci       AS FLOAT) AS ewd_upper,
+            CAST(f.ewd_dolna_granica_ufnosci       AS FLOAT) AS ewd_lower,
+            CAST(f.egzamin_oszacowanie_punktowe    AS FLOAT) AS egzamin_oszacowanie,
+            CAST(f.egzamin_gorna_granica_ufnosci   AS FLOAT) AS egzamin_upper,
+            CAST(f.egzamin_dolna_granica_ufnosci   AS FLOAT) AS egzamin_lower
         FROM dbo.Fakt_Matura_EWD f
         JOIN dbo.Wymiar_Czas    c ON c.id_czas     = f.id_czas
         JOIN dbo.Wymiar_Typ_EWD t ON t.id_typu_ewd = f.id_typu_ewd
