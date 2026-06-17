@@ -424,7 +424,51 @@ const App = (() => {
   }
 
   function exportPDF() {
-    alert('Eksport PDF — funkcja w przygotowaniu.');
+    if (myLista.length === 0) { alert('Lista jest pusta.'); return; }
+
+    // Buduj treść
+    const lines = myLista.map((id, i) => {
+      const s = Data.getSchool(id);
+      if (!s) return '';
+      const tier = tierLabel(getTier(s.prog_min));
+      return `${i + 1}. ${s.nazwa}\n   Dzielnica: ${s.dzielnica ?? '—'} | Próg: ${s.prog_min ?? '—'} pkt | ${tier}`;
+    }).filter(Boolean);
+
+    const tekst = `Moja Lista Liceów — WawaLiceum\n${'─'.repeat(40)}\n\n${lines.join('\n\n')}\n\n─────────────────────────────────────\nWygenerowano: ${new Date().toLocaleDateString('pl-PL')}\nhttps://pd5132.github.io/WawaLiceum/app/`;
+
+    // Próba Web Share API (telefon — udostępnij / zapisz / wyślij mailem)
+    if (navigator.share) {
+      navigator.share({ title: 'Moja Lista Liceów', text: tekst })
+        .catch(() => {}); // użytkownik anulował — OK
+      return;
+    }
+
+    // Fallback: otwórz okno drukowania (desktop / zapis PDF)
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="UTF-8"><title>Moja Lista Liceów</title>
+      <style>
+        body { font-family: sans-serif; padding: 2rem; color: #064E3B; }
+        h1 { color: #059669; margin-bottom: 1rem; }
+        .school { margin-bottom: 1.2rem; border-bottom: 1px solid #D1FAE5; padding-bottom: 0.8rem; }
+        .rank { font-size: 1.1rem; font-weight: bold; color: #047857; }
+        .meta { color: #6B7280; font-size: 0.85rem; margin-top: 0.25rem; }
+        footer { margin-top: 2rem; font-size: 0.75rem; color: #9CA3AF; }
+      </style></head><body>
+      <h1>Moja Lista Liceów</h1>
+      ${myLista.map((id, i) => {
+        const s = Data.getSchool(id);
+        if (!s) return '';
+        const tier = tierLabel(getTier(s.prog_min));
+        return `<div class="school">
+          <div class="rank">${i + 1}. ${s.nazwa}</div>
+          <div class="meta">Dzielnica: ${s.dzielnica ?? '—'} &nbsp;|&nbsp; Próg: ${s.prog_min ?? '—'} pkt &nbsp;|&nbsp; ${tier}</div>
+        </div>`;
+      }).join('')}
+      <footer>Wygenerowano ${new Date().toLocaleDateString('pl-PL')} · WawaLiceum</footer>
+      </body></html>`);
+    win.document.close();
+    win.print();
   }
 
   // --- Porównywarka ---
