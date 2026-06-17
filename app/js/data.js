@@ -3,6 +3,12 @@
 // Moduł ładowania i dostępu do danych z plików JSON
 // JSON-i generuje skrypt ETL: etl/export_json.py
 const Data = (() => {
+  // Oblicz absolutny URL do folderu data/ niezależnie od trailing slash w URL
+  const DATA_BASE = (() => {
+    let path = window.location.pathname;
+    if (!path.endsWith('/')) path = path.substring(0, path.lastIndexOf('/') + 1);
+    return window.location.origin + path + 'data/';
+  })();
   let schools     = [];  // Wymiar_Szkola (+ prog_min denormalizowany)
   let thresholds  = [];  // Fakt_Rekrutacja_Wyniki
   let ewd         = [];  // Fakt_Matura_EWD
@@ -12,22 +18,23 @@ const Data = (() => {
   let inicjatywy  = [];  // Wymiar_Inicjatywy_Zewnetrzne + Mostek
   let planNaboru  = [];  // Fakt_Plan_Naboru
 
-  async function fetchJSON(path) {
-    const res = await fetch(path);
-    if (!res.ok) throw new Error(`Nie można załadować: ${path}`);
+  async function fetchJSON(name) {
+    const url = DATA_BASE + name;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Nie można załadować: ${url} (status ${res.status})`);
     return res.json();
   }
 
   async function load() {
     // Ładujemy pliki sekwencyjnie żeby łatwiej zlokalizować błąd
-    schools    = await fetchJSON('./data/schools.json');
-    thresholds = await fetchJSON('./data/thresholds.json');
-    ewd        = await fetchJSON('./data/ewd.json');
-    ranking    = await fetchJSON('./data/ranking.json');
-    matura     = await fetchJSON('./data/matura.json');
-    atmosfera  = await fetchJSON('./data/atmosfera.json');
-    inicjatywy = await fetchJSON('./data/inicjatywy.json');
-    planNaboru = await fetchJSON('./data/plan_naboru.json');
+    schools    = await fetchJSON('schools.json');
+    thresholds = await fetchJSON('thresholds.json');
+    ewd        = await fetchJSON('ewd.json');
+    ranking    = await fetchJSON('ranking.json');
+    matura     = await fetchJSON('matura.json');
+    atmosfera  = await fetchJSON('atmosfera.json');
+    inicjatywy = await fetchJSON('inicjatywy.json');
+    planNaboru = await fetchJSON('plan_naboru.json');
 
     // Denormalizuj: dołącz prog_min (max rok), ranking_pozycja (max rok) do każdej szkoły
     schools = schools.map(s => {
