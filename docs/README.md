@@ -64,9 +64,5 @@ Interfejs mobilny oparty jest na standardzie Material Design 3 i zorganizowany w
 - Ekran 3: Karta Liceum – Pełna analityka szkoły. Zawiera przełącznik tła maturalnego (Podstawowe/Rozszerzone), wskaźnik EWD, ofertę klas oraz unikalny wykres trendu progów punktowych z ostatnich 5 lat dla poszczególnych profili klas.
 - Ekran 4: Moja Lista – Panel układania własnej listy preferencji rekrutacyjnych (od 1 do 5) z interfejsem Drag & Drop, ułatwiający przygotowanie do rejestracji w oficjalnym systemie Vulcan. Umożliwia eksport listy do PDF (format Vulcan). System ostrzega użytkownika, gdy lista zawiera zbyt wiele szkół marzeń bez szkół bezpiecznych na końcu.
 - Ekran 5: Porównywarka – Tabela zestawiająca do 4 wybranych szkół kolumnowo pod kątem kryteriów twardych (progi na profile, 3-letnie EWD bloku humanistycznego/matematycznego, wyniki matur) i miękkich (hałas z mapy klimatycznej m.st. Warszawy, wielkość klas pierwszych, dostępność psychologa).
-
-## 6. Instrukcje dla Agenta AI
-Agent AI wykorzystujący ten kontekst powinien:
-1. Generować zapytania T-SQL/DAX zgodnie z podanym modelem gwiazdy i logiką algorytmu rekrutacyjnego (mnożniki, limity punktów).
-2. Wspierać rozwój kodu HTML/Tailwind dla wymienionych ekranów, dbając o spójność danych (np. przenoszenie wyniku 158.00 pkt z Ekranu 1 do Ekranu 2).
+Ekranu 2).
 3. Analizować zapytania pod kątem optymalizacji relacyjnej i wydajności w środowisku MS SQL Server.
