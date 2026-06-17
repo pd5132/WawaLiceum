@@ -60,18 +60,28 @@
 
   <style>
     * { -webkit-tap-highlight-color: transparent; }
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F0FDF9; overscroll-behavior: none; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F0FDF9; overscroll-behavior: none; color: #064E3B; }
     .screen { display: none; flex-direction: column; min-height: 100dvh; }
     .screen.active { display: flex; }
     .pb-nav { padding-bottom: calc(4rem + env(safe-area-inset-bottom)); }
     #map { height: 100%; min-height: 400px; }
-    input[type=range]::-webkit-slider-thumb { accent-color: #059669; }
+    input[type=range] { accent-color: #059669; }
+
+    /* Fallbacki dla customowych kolorów Tailwind — na wypadek gdy CDN ich nie generuje */
+    .bg-surface   { background-color: #FFFFFF !important; }
+    .bg-bg        { background-color: #F0FDF9 !important; }
+    .text-ink     { color: #064E3B !important; }
+    .text-muted   { color: #6B7280 !important; }
+    .border-border{ border-color: #D1FAE5 !important; }
+    .text-primary { color: #059669 !important; }
+    .bg-primary   { background-color: #059669 !important; }
+    .border-primary { border-color: #059669 !important; }
   </style>
 </head>
 <body class="bg-bg text-ink">
 
   <!-- ===================== SCREEN 0: SPLASH ===================== -->
-  <div id="screen-splash" class="screen active items-center justify-center bg-gradient-to-b from-primary to-primary-dark">
+  <div id="screen-splash" class="screen active items-center justify-center" style="background: linear-gradient(to bottom, #059669, #047857)">
     <div class="flex flex-col items-center gap-6 px-8 text-center">
       <!-- Logo -->
       <div class="animate-scaleIn w-24 h-24 rounded-3xl bg-white/20 backdrop-blur flex items-center justify-center shadow-xl">
@@ -433,8 +443,8 @@
   </div>
 
   <!-- ===================== NAWIGACJA DOLNA ===================== -->
-  <nav id="bottom-nav" class="hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50"
-       style="padding-bottom: env(safe-area-inset-bottom)">
+  <nav id="bottom-nav" class="hidden fixed bottom-0 left-0 right-0 z-50"
+       style="background:#ffffff; border-top:1px solid #D1FAE5; padding-bottom: env(safe-area-inset-bottom)">
     <div class="flex justify-around items-center h-16">
       <button onclick="App.navigate('kalkulator')" data-nav="kalkulator"
         class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors text-muted">
