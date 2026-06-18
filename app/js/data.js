@@ -25,8 +25,34 @@ const Data = (() => {
     return res.json();
   }
 
+  // Normalizacja profilu z nazwy oddziału (keyword matching)
+  function normalizeProfile(nazwa) {
+    if (!nazwa) return null;
+    const n = nazwa.toLowerCase()
+      .replace(/ą/g,'a').replace(/ć/g,'c').replace(/ę/g,'e').replace(/ł/g,'l')
+      .replace(/ń/g,'n').replace(/ó/g,'o').replace(/ś/g,'s')
+      .replace(/ź/g,'z').replace(/ż/g,'z');
+    if (n.includes('humanist')) return 'humanistyczny';
+    if (n.includes('mat') && n.includes('fiz')) return 'matematyczno-fizyczny';
+    if (n.includes('mat') && (n.includes('inf') || n.includes('inform'))) return 'matematyczno-informatyczny';
+    if (n.includes('biol') && n.includes('chem')) return 'biologiczno-chemiczny';
+    if (n.includes('biol') && n.includes('fiz')) return 'biologiczno-fizyczny';
+    if (n.includes('lingwist') || n.includes('jezykow')) return 'językowy';
+    if (n.includes('artyst')) return 'artystyczny';
+    if (n.includes('sport')) return 'sportowy';
+    if (n.includes('mundur') || n.includes('wojsk')) return 'mundurowy';
+    if (n.includes('archit')) return 'architektoniczny';
+    if (n.includes('ekon') || n.includes('zarzadz') || n.includes('menedz')) return 'ekonomiczny';
+    if (n.includes('medycz') || n.includes('zdrowi')) return 'medyczny';
+    if (n.includes('prawno') || n.includes('prawn')) return 'prawny';
+    if (n.includes('psycholog')) return 'psychologiczny';
+    if (n.includes('inform') && !n.includes('mat')) return 'informatyczny';
+    if (n.includes('matem') && !n.includes('fiz') && !n.includes('inf')) return 'matematyczny';
+    if (n.includes('przyr')) return 'przyrodniczy';
+    return null;
+  }
+
   async function load() {
-    // Ładujemy pliki sekwencyjnie żeby łatwiej zlokalizować błąd
     schools    = await fetchJSON('schools.json');
     thresholds = await fetchJSON('thresholds.json');
     ewd        = await fetchJSON('ewd.json');
@@ -36,7 +62,7 @@ const Data = (() => {
     inicjatywy = await fetchJSON('inicjatywy.json');
     planNaboru = await fetchJSON('plan_naboru.json');
 
-    // Denormalizuj: dołącz prog_min (max rok), ranking_pozycja (max rok) do każdej szkoły
+    // Denormalizuj: prog_min (max rok), ranking_pozycja (max rok), profiles z nazw oddziałów
     schools = schools.map(s => {
       const schoolThresholds = thresholds.filter(t => t.id_szkoly_rspo === s.id);
       const maxRok = schoolThresholds.length
@@ -54,16 +80,22 @@ const Data = (() => {
         : null;
       const rankLatest = schoolRanking.find(r => r.rok_kalendarzowy === maxRokRank);
 
-      // Typ oddziału z planu naboru (dla filtra profil)
       const plan = planNaboru.find(p => p.id_szkoly_rspo === s.id);
+
+      // Profile z nazw oddziałów we wszystkich progach
+      const profileSet = new Set();
+      schoolThresholds.forEach(t => {
+        const p = normalizeProfile(t.nazwa_oddzialu);
+        if (p) profileSet.add(p);
+      });
 
       return {
         ...s,
         prog_min,
         prog_rok,
         ranking_pozycja: rankLatest?.pozycja_w_rankingu ?? null,
-        typ_oddzialu: plan?.typ_oddzialu ?? null,
         jezyk_dwujezyczny: plan?.jezyk_dwujezyczny ?? null,
+        profiles: [...profileSet],
       };
     });
   }
@@ -81,10 +113,16 @@ const Data = (() => {
   function getFiltered({ dzielnica, profil, jezyk } = {}) {
     return schools.filter(s => {
       if (dzielnica && s.dzielnica !== dzielnica) return false;
-      if (profil && s.typ_oddzialu !== profil) return false;
+      if (profil && !(s.profiles || []).includes(profil)) return false;
       if (jezyk && s.jezyk_dwujezyczny !== jezyk) return false;
       return true;
     }).sort((a, b) => (b.prog_min ?? 0) - (a.prog_min ?? 0));
+  }
+
+  function getProfiles() {
+    const all = new Set();
+    schools.forEach(s => (s.profiles || []).forEach(p => all.add(p)));
+    return [...all].sort();
   }
 
   // Progi dla szkoły (max rok, wszystkie oddziały)
@@ -121,5 +159,5 @@ const Data = (() => {
     return inicjatywy.filter(i => i.id_szkoly_rspo === schoolId);
   }
 
-  return { load, getAll, getSchool, getFiltered, getThresholds, getEWD, getMatura, getAtmosfera, getInicjatywy };
+  return { load, getAll, getSchool, getFiltered, getProfiles, getThresholds, getEWD, getMatura, getAtmosfera, getInicjatywy };
 })();
