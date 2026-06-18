@@ -251,7 +251,7 @@ const App = (() => {
             <span class="text-xs font-medium text-ink">${p.nazwa_oddzialu ?? p.symbol_oddzialu}</span>
             <span class="ml-2 text-xs text-muted">${p.rok_kalendarzowy}</span>
           </div>
-          <span class="text-sm font-semibold text-primary">${p.prog_min} pkt</span>
+          <span class="text-sm font-semibold text-primary">${p.prog_punktowy_min != null ? p.prog_punktowy_min + ' pkt' : '—'}</span>
         </div>`).join('');
     } else {
       progiEl.innerHTML = '<p class="text-sm text-muted">Brak danych</p>';
