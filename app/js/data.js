@@ -116,6 +116,13 @@ const Data = (() => {
       const rankLatest = schoolRanking.find(r => r.rok_kalendarzowy === maxRokRank);
 
       const plan = planNaboru.find(p => p.id_szkoly_rspo === s.id);
+      const rawJezyk = plan?.jezyk_dwujezyczny;
+      // Normalizuj: 'jez.angielski' → 'jez. angielski'; odrzuć nie-języki i null/nan
+      const jezyk_dwujezyczny = (() => {
+        if (!rawJezyk || rawJezyk === 'nan') return null;
+        const j = String(rawJezyk).trim().replace(/^jez\.([^\s])/, 'jez. $1');
+        return j.startsWith('jez.') ? j : null;
+      })();
 
       // Profile z nazw oddziałów we wszystkich progach
       const profileSet = new Set();
@@ -129,7 +136,7 @@ const Data = (() => {
         prog_min,
         prog_rok,
         ranking_pozycja: rankLatest?.pozycja_w_rankingu ?? null,
-        jezyk_dwujezyczny: plan?.jezyk_dwujezyczny ?? null,
+        jezyk_dwujezyczny,
         profiles: [...profileSet],
       };
     });
