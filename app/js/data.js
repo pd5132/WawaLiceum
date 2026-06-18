@@ -25,30 +25,65 @@ const Data = (() => {
     return res.json();
   }
 
-  // Normalizacja profilu z nazwy oddziału (keyword matching)
+  // Normalizacja profilu z nazwy oddziału.
+  // Format danych: '{klasa} [{TYP}] {rozszerzenia} ({jezyki})'
+  // Przykłady: '1A [O] biol-chem-mat (ang-niem)', '0A [DW] (fra-ang)', '1A [I-o] hist-pol (ang)'
   function normalizeProfile(nazwa) {
     if (!nazwa) return null;
-    const n = nazwa.toLowerCase()
-      .replace(/ą/g,'a').replace(/ć/g,'c').replace(/ę/g,'e').replace(/ł/g,'l')
-      .replace(/ń/g,'n').replace(/ó/g,'o').replace(/ś/g,'s')
-      .replace(/ź/g,'z').replace(/ż/g,'z');
-    if (n.includes('humanist')) return 'humanistyczny';
-    if (n.includes('mat') && n.includes('fiz')) return 'matematyczno-fizyczny';
-    if (n.includes('mat') && (n.includes('inf') || n.includes('inform'))) return 'matematyczno-informatyczny';
-    if (n.includes('biol') && n.includes('chem')) return 'biologiczno-chemiczny';
-    if (n.includes('biol') && n.includes('fiz')) return 'biologiczno-fizyczny';
-    if (n.includes('lingwist') || n.includes('jezykow')) return 'językowy';
-    if (n.includes('artyst')) return 'artystyczny';
-    if (n.includes('sport')) return 'sportowy';
-    if (n.includes('mundur') || n.includes('wojsk')) return 'mundurowy';
-    if (n.includes('archit')) return 'architektoniczny';
-    if (n.includes('ekon') || n.includes('zarzadz') || n.includes('menedz')) return 'ekonomiczny';
-    if (n.includes('medycz') || n.includes('zdrowi')) return 'medyczny';
-    if (n.includes('prawno') || n.includes('prawn')) return 'prawny';
-    if (n.includes('psycholog')) return 'psychologiczny';
-    if (n.includes('inform') && !n.includes('mat')) return 'informatyczny';
-    if (n.includes('matem') && !n.includes('fiz') && !n.includes('inf')) return 'matematyczny';
-    if (n.includes('przyr')) return 'przyrodniczy';
+
+    // Wyciągnij tag typu klasy: [O], [D], [DW], [S], [I-o], [MM], [KW] itp.
+    const typeMatch = nazwa.match(/\[([^\]]+)\]/);
+    const type = typeMatch ? typeMatch[1].toUpperCase() : '';
+
+    // Typ klasy decyduje bez analizy rozszerzeń
+    if (type === 'DW' || type === 'D') return 'dwujęzyczny';
+    if (type === 'I-O' || type === 'I' || type === 'MM' || type === 'M' || type === 'MYP' || type === 'IB') return 'międzynarodowy';
+    if (type === 'S') return 'sportowy';
+    if (type === 'KW') return 'klasa wstępna';
+    if (type === 'MS') return 'sportowy';
+
+    // Dla [O] i innych: wyciągnij rozszerzenia (między tagiem a nawiasem)
+    const extMatch = nazwa.match(/\[[^\]]+\]\s*([^(]*)/);
+    if (!extMatch) return null;
+    const exts = extMatch[1].trim().toLowerCase().split('-').map(e => e.trim()).filter(Boolean);
+    if (!exts.length) return null;
+
+    const has = (...items) => items.every(x => exts.includes(x));
+    const any = (...items) => items.some(x => exts.includes(x));
+    const noSci = () => !any('mat', 'fiz', 'biol', 'chem', 'inf');
+    const FOREIGN = ['niem', 'franc', 'fra', 'hiszp', 'hisz', 'wlo', 'ros', 'kor', 'arab', 'lac', 'ang'];
+
+    // Artystyczny: historia sztuki
+    if (exts.some(e => e.startsWith('h.szt'))) return 'artystyczny';
+
+    // Przedmioty przyrodniczo-matematyczne
+    if (has('biol', 'chem')) return 'biologiczno-chemiczny';
+    if (has('fiz', 'mat') && any('inf')) return 'matematyczno-informatyczny';
+    if (has('mat', 'inf')) return 'matematyczno-informatyczny';
+    if (has('fiz', 'mat')) return 'matematyczno-fizyczny';
+    if (has('biol', 'fiz')) return 'biologiczno-fizyczny';
+    if (exts.includes('biol') && !any('chem', 'fiz')) return 'biologiczny';
+    if (exts.includes('chem') && exts.includes('mat')) return 'matematyczno-chemiczny';
+    if (exts.includes('inf') && !any('mat', 'fiz', 'biol', 'chem')) return 'informatyczny';
+    if (exts.includes('mat') && !any('fiz', 'biol', 'chem', 'inf', 'geogr')) return 'matematyczny';
+
+    // Przedmioty humanistyczne
+    if (any('hist', 'wos', 'filoz') && any('pol', 'ang')) return 'humanistyczny';
+    if (has('hist', 'pol') || has('pol', 'wos') || has('hist', 'wos')) return 'humanistyczny';
+    if (exts.includes('pol') && noSci()) return 'humanistyczny';
+    if (exts.includes('filoz') && noSci()) return 'humanistyczny';
+    if (exts.includes('hist') && noSci()) return 'humanistyczny';
+    if (exts.includes('wos') && noSci()) return 'humanistyczny';
+
+    // Językowy: klasy z samymi językami (ang+pol, niem, franc, itp.)
+    if (has('ang', 'pol') && noSci()) return 'językowy';
+    if (exts.every(e => FOREIGN.includes(e)) && exts.length <= 3) return 'językowy';
+
+    // Inne
+    if (any('biz', 'ek', 'ekon')) return 'ekonomiczny';
+    if (exts.includes('geogr') && exts.includes('mat')) return 'geograficzno-matematyczny';
+    if (exts.includes('geogr') && noSci()) return 'geograficzny';
+
     return null;
   }
 

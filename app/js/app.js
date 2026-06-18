@@ -251,7 +251,7 @@ const App = (() => {
             <span class="text-xs font-medium text-ink">${p.nazwa_oddzialu ?? p.symbol_oddzialu}</span>
             <span class="ml-2 text-xs text-muted">${p.rok_kalendarzowy}</span>
           </div>
-          <span class="text-sm font-semibold text-primary">${p.prog_min} pkt</span>
+          <span class="text-sm font-semibold text-primary">${p.prog_punktowy_min != null ? p.prog_punktowy_min + ' pkt' : '—'}</span>
         </div>`).join('');
     } else {
       progiEl.innerHTML = '<p class="text-sm text-muted">Brak danych</p>';
@@ -263,13 +263,39 @@ const App = (() => {
 
     // Matura
     const matEl = document.getElementById('karta-matura');
-    const matura = Data.getMatura(schoolId);
-    if (matura && matura.length > 0) {
-      matEl.innerHTML = matura.slice(0, 6).map(m => `
-        <div class="flex items-center justify-between py-1 border-b border-border last:border-0">
-          <span class="text-xs text-ink">${m.nazwa_przedmiotu} <span class="text-muted">${m.poziom}</span></span>
-          <span class="text-xs font-semibold text-ink">${m.sredni_wynik_proc != null ? m.sredni_wynik_proc + '%' : '—'}</span>
+    const maturaAll = Data.getMatura(schoolId);
+    if (maturaAll && maturaAll.length > 0) {
+      const maxRok = maturaAll[0].rok_kalendarzowy;
+      const latest = maturaAll.filter(m => m.rok_kalendarzowy === maxRok);
+
+      const renderGroup = items => items.map(m => `
+        <div class="flex items-center gap-1 py-1 border-b border-border last:border-0">
+          <span class="text-xs text-ink flex-1 min-w-0 truncate">${m.nazwa_przedmiotu}</span>
+          <span class="text-xs text-muted w-14 text-right flex-shrink-0">${m.zdawalnosc_proc != null ? m.zdawalnosc_proc.toFixed(1) + '%' : '—'}</span>
+          <span class="text-xs font-semibold text-primary w-14 text-right flex-shrink-0">${m.sredni_wynik_proc != null ? m.sredni_wynik_proc.toFixed(1) + '%' : '—'}</span>
         </div>`).join('');
+
+      const colHeader = `<div class="flex items-center gap-1 pb-1 text-[10px] text-muted">
+        <span class="flex-1">Przedmiot</span>
+        <span class="w-14 text-right">Zdawal.</span>
+        <span class="w-14 text-right">Śr. wynik</span>
+      </div>`;
+
+      const GRUPY = [
+        { key: 'podstawowy', label: 'Poziom podstawowy' },
+        { key: 'rozszerzony', label: 'Poziom rozszerzony' },
+        { key: 'dwujęzyczny', label: 'Poziom dwujęzyczny' },
+      ];
+
+      let html = `<p class="text-xs text-muted mb-2">Rok szkolny ${maxRok}</p>`;
+      let hasAny = false;
+      GRUPY.forEach(({ key, label }) => {
+        const items = latest.filter(m => m.poziom === key && (m.zdawalnosc_proc != null || m.sredni_wynik_proc != null));
+        if (!items.length) return;
+        hasAny = true;
+        html += `<p class="text-xs font-semibold text-muted uppercase tracking-wide mt-3 mb-1">${label}</p>${colHeader}${renderGroup(items)}`;
+      });
+      matEl.innerHTML = hasAny ? html : '<p class="text-sm text-muted">Brak danych</p>';
     } else {
       matEl.innerHTML = '<p class="text-sm text-muted">Brak danych</p>';
     }
@@ -328,7 +354,7 @@ const App = (() => {
     btnL.classList.toggle('bg-primary', inLista);
     btnL.classList.toggle('text-white', inLista);
     btnL.classList.toggle('text-primary', !inLista);
-    btnP.textContent = inPor ? '✓ W porównaniu' : 'Porównaj';
+    btnP.textContent = inPor ? '✓ W porównaniu' : 'Dodaj do porównania';
     btnP.classList.toggle('border-primary', inPor);
     btnP.classList.toggle('text-primary', inPor);
     btnP.classList.toggle('border-border', !inPor);
