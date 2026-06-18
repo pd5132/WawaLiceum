@@ -63,7 +63,7 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F0FDF9; overscroll-behavior: none; color: #064E3B; }
     .screen { display: none; flex-direction: column; min-height: 100dvh; }
     .screen.active { display: flex; }
-    .pb-nav { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+    .pb-nav { padding-bottom: calc(9rem + env(safe-area-inset-bottom)); }
     #map { height: 100%; min-height: 400px; }
     input[type=range] { accent-color: #059669; }
 
@@ -244,19 +244,23 @@
       <!-- Twoja Analiza -->
       <section id="analiza-block" class="bg-primary/10 border border-primary/20 rounded-2xl p-4 space-y-2 hidden">
         <h2 class="text-sm font-semibold text-ink">Twoja Analiza</h2>
+        <p class="text-xs text-muted">Kliknij kategorię, aby zobaczyć listę szkół</p>
         <div class="grid grid-cols-3 gap-2 text-center">
-          <div class="bg-green-100 rounded-xl py-2">
+          <button onclick="App.showTierSchools('high')"
+            class="bg-green-100 rounded-xl py-3 active:scale-95 transition-transform cursor-pointer border-0">
             <p id="analiza-high" class="text-xl font-bold text-green-700">—</p>
             <p class="text-xs text-green-600">Wysokie szanse</p>
-          </div>
-          <div class="bg-orange-100 rounded-xl py-2">
+          </button>
+          <button onclick="App.showTierSchools('medium')"
+            class="bg-orange-100 rounded-xl py-3 active:scale-95 transition-transform cursor-pointer border-0">
             <p id="analiza-medium" class="text-xl font-bold text-orange-700">—</p>
             <p class="text-xs text-orange-600">Realistyczne</p>
-          </div>
-          <div class="bg-red-100 rounded-xl py-2">
+          </button>
+          <button onclick="App.showTierSchools('dream')"
+            class="bg-red-100 rounded-xl py-3 active:scale-95 transition-transform cursor-pointer border-0">
             <p id="analiza-dream" class="text-xl font-bold text-red-700">—</p>
             <p class="text-xs text-red-600">Szkoły marzeń</p>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -294,6 +298,12 @@
           class="flex-shrink-0 rounded-full border border-border bg-bg px-3 py-1 text-xs font-medium text-ink focus:outline-none">
           <option value="">Drugi język</option>
         </select>
+      </div>
+      <!-- Chip: aktywny filtr tieru (z Twojej Analizy) -->
+      <div id="tier-filter-chip" style="display:none; margin-top:6px">
+        <span id="tier-filter-label" onclick="App.clearTierFilter()"
+          style="display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:99px;font-size:11px;font-weight:600;cursor:pointer">
+        </span>
       </div>
     </header>
 

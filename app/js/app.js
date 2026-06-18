@@ -12,6 +12,7 @@ const App = (() => {
   let myLista = JSON.parse(localStorage.getItem('wl-lista') || '[]');
   let porownajSet = JSON.parse(localStorage.getItem('wl-porownaj') || '[]');
   let currentView = 'lista';
+  let activeTierFilter = null;
 
   // --- Nawigacja ---
   function navigate(screen) {
@@ -156,9 +157,32 @@ const App = (() => {
     const dzielnica = document.getElementById('filter-dzielnica').value;
     const profil = document.getElementById('filter-profil').value;
     const jezyk = document.getElementById('filter-jezyk').value;
-    const filtered = Data.getFiltered({ dzielnica, profil, jezyk });
+    let filtered = Data.getFiltered({ dzielnica, profil, jezyk });
+    if (activeTierFilter) {
+      filtered = filtered.filter(s => getTier(s.prog_min) === activeTierFilter);
+    }
     renderSchoolList(filtered);
     if (currentView === 'mapa') renderMapMarkers(filtered);
+  }
+
+  function showTierSchools(tier) {
+    activeTierFilter = tier;
+    const chip = document.getElementById('tier-filter-chip');
+    const label = document.getElementById('tier-filter-label');
+    const colors = { high: '#dcfce7', medium: '#ffedd5', dream: '#fee2e2' };
+    const textColors = { high: '#166534', medium: '#9a3412', dream: '#991b1b' };
+    chip.style.display = 'block';
+    label.textContent = 'Filtr: ' + tierLabel(tier) + '  ×';
+    label.style.background = colors[tier];
+    label.style.color = textColors[tier];
+    navigate('szukaj');
+    applyFilters();
+  }
+
+  function clearTierFilter() {
+    activeTierFilter = null;
+    document.getElementById('tier-filter-chip').style.display = 'none';
+    applyFilters();
   }
 
   function renderSchoolList(schools) {
@@ -588,7 +612,7 @@ const App = (() => {
       // Wypełnij dropdowny
       const schools = Data.getAll();
       const dzielnice = [...new Set(schools.map(s => s.dzielnica).filter(Boolean))].sort();
-      const profile = [...new Set(schools.map(s => s.typ_oddzialu).filter(Boolean))].sort();
+      const profile = Data.getProfiles();
       const jezyki = [...new Set(schools.map(s => s.jezyk_dwujezyczny).filter(Boolean))].sort();
 
       const selDz = document.getElementById('filter-dzielnica');
@@ -616,5 +640,5 @@ const App = (() => {
 
   return { navigate, goBack, calcScore, setView, applyFilters, openKarta,
            toggleLista, togglePorownaj, moveItem, removeFromLista, removePorownaj,
-           exportPDF, onProfileChange };
+           exportPDF, onProfileChange, showTierSchools, clearTierFilter };
 })();
