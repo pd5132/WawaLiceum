@@ -19,9 +19,21 @@ OUT_DIR = Path(__file__).parent.parent / "app" / "data"
 
 
 def _clean(val):
-    """Replace float NaN/Inf with None so json.dumps produces valid JSON null."""
+    """Replace pandas/numpy nulls and non-finite numbers with JSON null."""
+    if val is None:
+        return None
+    try:
+        if pd.isna(val):
+            return None
+    except (TypeError, ValueError):
+        pass
     if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
         return None
+    if hasattr(val, "item") and not isinstance(val, (str, bytes)):
+        try:
+            return _clean(val.item())
+        except (AttributeError, TypeError, ValueError):
+            pass
     return val
 
 
@@ -32,7 +44,7 @@ def _dump(df_or_list, filename: str) -> None:
         data = df_or_list
     cleaned = [{k: _clean(v) for k, v in row.items()} for row in data]
     path = OUT_DIR / filename
-    path.write_text(json.dumps(cleaned, ensure_ascii=False, default=str), encoding="utf-8")
+    path.write_text(json.dumps(cleaned, ensure_ascii=False, default=str, allow_nan=False), encoding="utf-8")
     print(f"  [OK] {filename}  ({len(cleaned)} wierszy)")
 
 
