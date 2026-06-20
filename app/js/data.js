@@ -25,10 +25,23 @@ const Data = (() => {
     'D ': 'Dwujęzyczny', 'D': 'Dwujęzyczny',
     'DW': 'Dwujęzyczny',
     'I ': 'Międzynarodowy (IB)', 'I': 'Międzynarodowy (IB)',
-    'I-O': 'Międzynarodowy', 'MYP': 'Międzynarodowy', 'MM': 'Mundurowy',
-    'KW': 'Klasa wstępna', 'MS': 'Mundurowy sportowy',
+    'I-O': 'Integracyjny', 'I-o': 'Integracyjny',
+    'MM': 'Międzynarodowy (MYP)', 'MYP': 'Międzynarodowy (MYP)',
+    'KW': 'Klasa wstępna', 'MS': 'Mistrzostwo sportowe',
     'S ': 'Sportowy', 'S': 'Sportowy',
-    'PW': 'Przygotowania wojskowego', 'OM': 'Olimpijski',
+    'PW': 'Przygotowania wojskowego', 'OM': 'Mundurowy',
+  };
+
+  // Kody języków z nawiasów w thresholds.nazwa_oddzialu → wartości jez.*
+  // ang pominięty — niemal powszechny, filtr byłby bezużyteczny
+  const THR_LANG_MAP = {
+    'niem': 'jez. niemiecki',
+    'franc': 'jez. francuski', 'fra': 'jez. francuski',
+    'hisz': 'jez. hiszpanski', 'hiszp': 'jez. hiszpanski',
+    'wlo': 'jez. wloski',
+    'ros': 'jez. rosyjski',
+    'arab': 'jez. arabski',
+    'kor': 'jez. koreanski',
   };
 
   // Etykiety języków z plan_naboru.jezyk_dwujezyczny
@@ -78,7 +91,9 @@ const Data = (() => {
     const type = typeMatch ? typeMatch[1].toUpperCase() : '';
 
     if (type === 'DW' || type === 'D') return 'dwujęzyczny';
-    if (type === 'I-O' || type === 'I' || type === 'MM' || type === 'M' || type === 'MYP' || type === 'IB') return 'międzynarodowy';
+    if (type === 'M' || type === 'MYP' || type === 'IB') return 'międzynarodowy';
+    if (type === 'I-O' || type === 'I') return 'integracyjny';
+    if (type === 'MU' || type === 'PW') return 'mundurowy';
     if (type === 'S') return 'sportowy';
     if (type === 'KW') return 'klasa wstępna';
     if (type === 'MS') return 'sportowy';
@@ -167,10 +182,21 @@ const Data = (() => {
       // Wszystkie plany naboru dla szkoły
       const sPlans = planNaboru.filter(p => p.id_szkoly_rspo === sid);
 
-      // Multi-value języki ze wszystkich planów (np. jedna szkoła ma i hiszp i niem)
-      const jezyki_dodatkowe = [...new Set(
-        sPlans.map(p => normalizeJezyk(p.jezyk_dwujezyczny)).filter(Boolean)
-      )];
+      // Multi-value języki ze wszystkich planów
+      const planLangs = sPlans.map(p => normalizeJezyk(p.jezyk_dwujezyczny)).filter(Boolean);
+
+      // Dodaj języki z nawiasów w thresholds: "1Ch [O] biol-chem (ang-hisz)" → hisz
+      const thrLangSet = new Set();
+      sThr.forEach(t => {
+        const m = t.nazwa_oddzialu?.match(/\(([^)]+)\)/);
+        if (!m) return;
+        m[1].split(/[,\-]/).forEach(code => {
+          const mapped = THR_LANG_MAP[code.replace(/\*/g, '').trim().toLowerCase()];
+          if (mapped) thrLangSet.add(mapped);
+        });
+      });
+
+      const jezyki_dodatkowe = [...new Set([...planLangs, ...thrLangSet])];
 
       // Profile z nazw oddziałów we wszystkich progach
       const profileSet = new Set();

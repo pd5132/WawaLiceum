@@ -182,6 +182,11 @@ const App = (() => {
   function toggleDzielnicaDropdown(e) {
     if (e) e.stopPropagation();
     const panel = document.getElementById('dzielnica-panel');
+    if (panel.classList.contains('hidden')) {
+      const rect = document.getElementById('dzielnica-btn').getBoundingClientRect();
+      panel.style.top  = (rect.bottom + 4) + 'px';
+      panel.style.left = rect.left + 'px';
+    }
     panel.classList.toggle('hidden');
   }
 
@@ -246,7 +251,7 @@ const App = (() => {
           <div class="flex items-start gap-3">
             ${img ? `<img src="${img}" alt="" class="w-10 h-10 rounded-xl object-cover flex-shrink-0 mt-0.5">` : ''}
             <div class="flex-1 min-w-0">
-              <h3 class="text-sm font-semibold text-ink leading-tight pr-8">${s.nazwa}</h3>
+              <h3 class="text-sm font-semibold text-ink leading-tight">${s.nazwa}</h3>
               <p class="text-xs text-muted mt-0.5">${s.dzielnica}</p>
             </div>
             <span class="flex-shrink-0 text-xs font-medium px-2.5 py-0.5 rounded-full ${tierTextClass(tier)}">${tierLabel(tier)}</span>
@@ -257,16 +262,15 @@ const App = (() => {
               <span class="ml-1.5 text-sm font-semibold text-primary">${s.prog_min != null ? s.prog_min + ' pkt' : '—'}</span>
             </div>
             ${s.ranking_pozycja ? `<div><span class="text-xs text-muted">Ranking</span><span class="ml-1.5 text-sm font-semibold text-amber-600">#${s.ranking_pozycja}</span></div>` : ''}
+            <button onclick="event.stopPropagation();App.togglePorownajFromList(${s.id})"
+              id="pwr-list-${s.id}"
+              class="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${inPor ? 'bg-primary border-primary text-white' : 'border-border text-muted bg-surface hover:border-primary hover:text-primary'}">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              ${inPor ? 'Porównano ✓' : 'Porównaj'}
+            </button>
           </div>
-          <!-- Przycisk Dodaj do porównania -->
-          <button onclick="event.stopPropagation();App.togglePorownajFromList(${s.id})"
-            id="pwr-list-${s.id}"
-            title="Dodaj do porównania"
-            class="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full border transition-colors ${inPor ? 'bg-primary border-primary text-white' : 'border-border text-muted bg-surface'}">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-            </svg>
-          </button>
         </div>`;
     }).join('');
   }
@@ -473,12 +477,13 @@ const App = (() => {
     // Przycisk porównaj w nagłówku karty
     const btnPH = document.getElementById('karta-btn-porownaj-header');
     if (btnPH) {
-      btnPH.title = inPor ? 'W porównaniu (usuń)' : 'Dodaj do porównania';
       btnPH.classList.toggle('bg-primary',    inPor);
       btnPH.classList.toggle('text-white',    inPor);
       btnPH.classList.toggle('border-primary',inPor);
       btnPH.classList.toggle('border-border', !inPor);
       btnPH.classList.toggle('text-muted',    !inPor);
+      const lbl = document.getElementById('karta-btn-porownaj-label');
+      if (lbl) lbl.textContent = inPor ? 'Porównano ✓' : 'Porównaj';
     }
   }
 
@@ -604,7 +609,8 @@ const App = (() => {
     const btn = document.getElementById(`pwr-list-${id}`);
     if (!btn) return;
     const inPor = porownajSet.includes(id);
-    btn.className = `absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full border transition-colors ${inPor ? 'bg-primary border-primary text-white' : 'border-border text-muted bg-surface'}`;
+    btn.className = `ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${inPor ? 'bg-primary border-primary text-white' : 'border-border text-muted bg-surface hover:border-primary hover:text-primary'}`;
+    btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>${inPor ? 'Porównano ✓' : 'Porównaj'}`;
   }
 
   function renderLista() {
@@ -698,7 +704,7 @@ const App = (() => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
         <p class="text-sm">Brak szkół do porównania</p>
-        <p class="text-xs mt-1 text-muted">Dodaj szkoły do porównania — ikona ⊞ na liście lub przycisk w karcie szkoły</p>
+        <p class="text-xs mt-1 text-muted">Dodaj szkoły przyciskiem "Porównaj" na liście lub w karcie szkoły</p>
         <button onclick="App.navigate('szukaj')" class="mt-4 text-xs font-semibold text-primary border border-primary px-4 py-2 rounded-full">
           Szukaj szkół
         </button>
@@ -707,55 +713,160 @@ const App = (() => {
     }
 
     const schools = porownajSet.map(id => Data.getSchool(id)).filter(Boolean);
+    const nCols   = schools.length + 1;
 
     const ewdCell = (sid, rodzaj) => {
       const e = Data.getEWD(sid, rodzaj);
       if (!e) return '<span class="text-muted">—</span>';
       const v = e.ewd_oszacowanie_punktowe;
-      const cls = v >= 0 ? 'text-primary' : 'text-red-600';
-      return `<span class="${cls} font-semibold">${v>0?'+':''}${v}</span>`;
+      const cls = v > 0 ? 'text-primary font-semibold' : v < 0 ? 'text-red-600 font-semibold' : 'text-muted';
+      return `<span class="${cls}">${v > 0 ? '+' : ''}${v.toFixed(2)}</span>`;
+    };
+
+    const matCell = (sid, subject, poziom) => {
+      const rows = Data.getMatura(sid);
+      const m = rows.find(r => r.nazwa_przedmiotu === subject && r.poziom === poziom);
+      if (!m || m.sredni_wynik_proc == null) return '<span class="text-muted">—</span>';
+      const v = m.sredni_wynik_proc;
+      const cls = v >= 70 ? 'text-primary font-semibold' : v >= 50 ? 'text-amber-600 font-semibold' : 'text-red-600 font-semibold';
+      return `<span class="${cls}">${v.toFixed(1)}%</span>`;
+    };
+
+    const atmCell = (sid, field) => {
+      const a = Data.getAtmosfera(sid);
+      const v = a?.[field];
+      if (v == null) return '<span class="text-muted">—</span>';
+      const cls = v >= 70 ? 'text-primary font-semibold' : v >= 50 ? 'text-amber-600 font-semibold' : 'text-red-600 font-semibold';
+      return `<span class="${cls}">${v}%</span>`;
+    };
+
+    const INI_LABEL = {
+      'Erasmus':               'Erasmus+',
+      'IB':                    'IB',
+      'UNESCO':                'UNESCO',
+      'Aktywnosc_spoleczna':   'Aktywność społeczna',
+      'Projekty_edukacyjne':   'Projekty edukacyjne',
+      'Wspolpraca_organizacje':'Współpraca org.',
+      'Wolontariat':           'Wolontariat',
     };
 
     const rows = [
-      { label: 'Szanse',       fn: s => { const t=getTier(s.prog_min); return `<span class="text-xs font-medium px-2 py-0.5 rounded-full ${tierTextClass(t)}">${tierLabel(t)}</span>`; } },
-      { label: 'Próg min.',    fn: s => s.prog_min != null ? `<span class="font-semibold text-primary">${s.prog_min} pkt</span>` : '—' },
-      { label: 'Ranking PL',   fn: s => s.ranking_pozycja ? `<span class="font-semibold text-amber-600">#${s.ranking_pozycja}</span>` : '—' },
-      { label: 'EWD hum.',     fn: s => ewdCell(s.id,'humanistyczny') },
-      { label: 'EWD mat.',     fn: s => ewdCell(s.id,'matematyczny') },
-      { label: 'EWD biol-ch.', fn: s => ewdCell(s.id,'biolchem') },
-      { label: 'Atmosfera',    fn: s => { const a=Data.getAtmosfera(s.id); return a?.atmosfera_proc != null ? `${a.atmosfera_proc}%` : '—'; } },
-      { label: 'Języki',       fn: s => (s.jezyki_dodatkowe||[]).map(j=>Data.jezyklabel(j)).join(', ')||'—' },
-      { label: 'Dzielnica',    fn: s => `<span class="text-xs">${s.dzielnica??'—'}</span>` },
-      { label: 'Nabór 2026',   fn: s => { const p=Data.getPlanNaboru2026(s.id); return p.length ? `${p.length} profilów` : '—'; } },
+      // ── Szanse i progi ──
+      { header: 'Szanse i progi' },
+      { label: 'Szanse',
+        fn: s => { const t = getTier(s.prog_min); return `<span class="text-xs font-semibold px-2 py-0.5 rounded-full ${tierTextClass(t)}">${tierLabel(t)}</span>`; } },
+      { label: 'Próg min.',
+        fn: s => s.prog_min != null ? `<span class="font-semibold text-primary">${s.prog_min} pkt</span>` : '—' },
+      { label: 'Próg max.',
+        fn: s => {
+          const thr  = Data.getThresholds(s.id);
+          const vals = thr.map(t => t.prog_punktowy_min).filter(p => p != null);
+          const max  = vals.length ? Math.max(...vals) : null;
+          return max != null ? `<span class="font-semibold">${max} pkt</span>` : '—';
+        } },
+      { label: 'Ranking PL',
+        fn: s => s.ranking_pozycja ? `<span class="font-semibold text-amber-600">#${s.ranking_pozycja}</span>` : '—' },
+
+      // ── Profile i języki ──
+      { header: 'Profile i języki' },
+      { label: 'Profile',
+        fn: s => (s.profiles || []).length
+          ? (s.profiles || []).map(p => `<span class="inline-block text-[10px] border border-border rounded px-1 py-0.5 mr-0.5 mb-0.5">${p}</span>`).join('')
+          : '—' },
+      { label: 'Języki',
+        fn: s => (s.jezyki_dodatkowe || []).map(j => Data.jezyklabel(j)).join(', ') || '—' },
+      { label: 'Nabór 2026',
+        fn: s => {
+          const rek = Data.getRekrutacja2026(s.id);
+          if (rek && rek.length) return rek.map(p => `<span class="block text-left">${p.symbol ? p.symbol + ' ' : ''}${p.nazwa_profilu}</span>`).join('');
+          const pln = Data.getPlanNaboru2026(s.id);
+          return pln.length ? pln.map(p => `<span class="block">${p.typ_oddzialu_label}</span>`).join('') : '—';
+        } },
+
+      // ── EWD ──
+      { header: 'EWD (wartość dodana)' },
+      { label: 'EWD humanist.', fn: s => ewdCell(s.id, 'humanistyczny') },
+      { label: 'EWD mat.',      fn: s => ewdCell(s.id, 'matematyczny') },
+      { label: 'EWD biol-ch.',  fn: s => ewdCell(s.id, 'biolchem') },
+
+      // ── Matura ──
+      { header: 'Matura — śr. wynik rozszerzony' },
+      { label: 'Matematyka',      fn: s => matCell(s.id, 'matematyka',      'rozszerzony') },
+      { label: 'Język polski',    fn: s => matCell(s.id, 'język polski',    'rozszerzony') },
+      { label: 'Język angielski', fn: s => matCell(s.id, 'język angielski', 'rozszerzony') },
+      { label: 'Fizyka',          fn: s => matCell(s.id, 'fizyka',          'rozszerzony') },
+      { label: 'Biologia',        fn: s => matCell(s.id, 'biologia',        'rozszerzony') },
+      { label: 'Chemia',          fn: s => matCell(s.id, 'chemia',          'rozszerzony') },
+      { label: 'Historia',        fn: s => matCell(s.id, 'historia',        'rozszerzony') },
+      { label: 'Informatyka',     fn: s => matCell(s.id, 'informatyka',     'rozszerzony') },
+
+      // ── Atmosfera ──
+      { header: 'Atmosfera (opinie uczniów)' },
+      { label: 'Ogólna',          fn: s => atmCell(s.id, 'atmosfera_proc') },
+      { label: 'Przyjemność nauki', fn: s => atmCell(s.id, 'przyjemnosc_nauki_proc') },
+      { label: 'Relacje uczniów', fn: s => atmCell(s.id, 'relacje_uczniow_proc') },
+      { label: 'Nauczyciele',     fn: s => atmCell(s.id, 'relacja_nauczyciel_proc') },
+      { label: 'Nowoczesność',    fn: s => atmCell(s.id, 'nowoczesnosc_zajec_proc') },
+      { label: 'Polecają szkołę', fn: s => atmCell(s.id, 'polecanie_szkoly_proc') },
+      { label: 'Liczba opinii',   fn: s => { const a = Data.getAtmosfera(s.id); return a?.liczba_ankiet != null ? String(a.liczba_ankiet) : '—'; } },
+
+      // ── Inicjatywy ──
+      { header: 'Inicjatywy zewnętrzne' },
+      { label: 'Programy',
+        fn: s => {
+          const ini = Data.getInicjatywy(s.id);
+          if (!ini.length) return '—';
+          return ini.map(i => {
+            const lab = INI_LABEL[i.typ_inicjatywy] || i.typ_inicjatywy.replace(/_/g, ' ');
+            return `<span class="block text-left text-[10px]">• ${lab}</span>`;
+          }).join('');
+        } },
+
+      // ── Szkoła ──
+      { header: 'Informacje o szkole' },
+      { label: 'Typ',      fn: s => s.czy_publiczna !== undefined ? (s.czy_publiczna ? 'Publiczna' : 'Prywatna') : '—' },
+      { label: 'Dzielnica', fn: s => s.dzielnica ?? '—' },
+      { label: 'Strona',   fn: s => s.strona_www
+          ? `<a href="${s.strona_www}" target="_blank" rel="noopener" class="text-primary underline text-[10px]">www</a>`
+          : '—' },
     ];
+
+    let dataIdx = 0;
+    const rowsHtml = rows.map(row => {
+      if (row.header) {
+        dataIdx = 0;
+        return `<tr class="bg-emerald-50 border-b border-primary/20">
+          <td colspan="${nCols}" class="px-3 py-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">${row.header}</td>
+        </tr>`;
+      }
+      const bg  = dataIdx++ % 2 === 0 ? 'bg-white' : 'bg-bg';
+      return `<tr class="${bg} border-b border-border">
+        <td class="sticky left-0 ${bg} p-2 text-muted font-medium border-r border-border whitespace-nowrap text-[11px]">${row.label}</td>
+        ${schools.map(s => `<td class="p-2 text-center text-xs align-top">${row.fn(s)}</td>`).join('')}
+      </tr>`;
+    }).join('');
 
     el.innerHTML = `
       <div class="overflow-x-auto">
       <table class="w-full text-xs border-collapse min-w-[360px]">
-        <thead>
-          <tr class="bg-bg border-b border-border">
+        <thead class="sticky top-0 z-10">
+          <tr class="bg-bg border-b-2 border-border">
             <th class="sticky left-0 bg-bg text-left p-3 text-muted font-medium w-24 border-r border-border"></th>
             ${schools.map(s => {
               const img = Data.getImage(s.id);
-              const inPor = porownajSet.includes(s.id);
-              return `<th class="p-3 text-center min-w-[130px]">
-                ${img ? `<img src="${img}" alt="" class="w-10 h-10 rounded-xl object-cover mx-auto mb-1">` : ''}
+              return `<th class="p-3 text-center min-w-[140px] align-top">
+                ${img ? `<img src="${img}" alt="" class="w-12 h-12 rounded-xl object-cover mx-auto mb-1.5">` : ''}
                 <p class="text-xs font-semibold text-ink leading-tight">${s.nazwa}</p>
-                <div class="flex gap-1 justify-center mt-1">
-                  <button onclick="App.openKarta(${s.id})" class="text-[10px] text-primary border border-primary px-2 py-0.5 rounded-full">Karta</button>
-                  <button onclick="App.removePorownaj(${s.id})" class="text-[10px] text-muted border border-border px-2 py-0.5 rounded-full">✕</button>
+                <p class="text-[10px] text-muted mt-0.5">${s.dzielnica ?? ''}</p>
+                <div class="flex gap-1 justify-center mt-1.5">
+                  <button onclick="App.openKarta(${s.id})" class="text-[10px] text-primary border border-primary px-2 py-0.5 rounded-full font-medium">Karta</button>
+                  <button onclick="App.removePorownaj(${s.id})" class="text-[10px] text-muted border border-border px-2 py-0.5 rounded-full">Usuń</button>
                 </div>
               </th>`;
             }).join('')}
           </tr>
         </thead>
-        <tbody>
-          ${rows.map((row, ri) => `
-            <tr class="${ri%2===0?'bg-white':'bg-bg'} border-b border-border">
-              <td class="sticky left-0 ${ri%2===0?'bg-white':'bg-bg'} p-3 text-muted font-medium border-r border-border">${row.label}</td>
-              ${schools.map(s => `<td class="p-3 text-center">${row.fn(s)}</td>`).join('')}
-            </tr>`).join('')}
-        </tbody>
+        <tbody>${rowsHtml}</tbody>
       </table>
       </div>`;
   }
@@ -814,11 +925,13 @@ const App = (() => {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 
-    // Zamknij panel dzielnic przy kliknięciu poza nim
+    // Zamknij panel dzielnic przy kliknięciu poza przyciskiem lub panelem
     document.addEventListener('click', e => {
-      const container = document.getElementById('dzielnica-dropdown-container');
-      if (container && !container.contains(e.target)) {
-        document.getElementById('dzielnica-panel')?.classList.add('hidden');
+      const btn   = document.getElementById('dzielnica-btn');
+      const panel = document.getElementById('dzielnica-panel');
+      if (!panel) return;
+      if (!panel.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+        panel.classList.add('hidden');
       }
     });
 
@@ -829,17 +942,18 @@ const App = (() => {
 
       const allSchools = Data.getAll();
 
-      // Dzielnica multi-select — wypełnij checkboxami
+      // Dzielnica multi-select — panel dodany do <body> aby uniknąć clippingu overflow-x-auto
       const dzielnice = [...new Set(allSchools.map(s => s.dzielnica).filter(Boolean))].sort();
-      const dzPanel   = document.getElementById('dzielnica-panel');
-      if (dzPanel) {
-        dzPanel.innerHTML = dzielnice.map(d => `
-          <label class="flex items-center gap-2 px-1 py-0.5 cursor-pointer hover:bg-bg rounded">
-            <input type="checkbox" value="${d}" onchange="App.updateDzielnicaLabel();App.applyFilters()"
-              class="w-3.5 h-3.5 accent-primary rounded">
-            <span class="text-xs text-ink">${d}</span>
-          </label>`).join('');
-      }
+      const dzPanel   = document.createElement('div');
+      dzPanel.id      = 'dzielnica-panel';
+      dzPanel.className = 'hidden fixed bg-white border border-border rounded-xl shadow-lg z-50 p-2 space-y-0.5 max-h-52 overflow-y-auto min-w-[170px]';
+      dzPanel.innerHTML = dzielnice.map(d => `
+        <label class="flex items-center gap-2 px-1 py-0.5 cursor-pointer hover:bg-bg rounded">
+          <input type="checkbox" value="${d}" onchange="App.updateDzielnicaLabel();App.applyFilters()"
+            class="w-3.5 h-3.5 accent-primary rounded">
+          <span class="text-xs text-ink">${d}</span>
+        </label>`).join('');
+      document.body.appendChild(dzPanel);
 
       // Profile dropdown
       const profile = Data.getProfiles();

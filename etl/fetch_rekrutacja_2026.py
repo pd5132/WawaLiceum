@@ -43,10 +43,17 @@ SESSION.headers.update({
 REKRUTACJA_PATHS = [
     "/rekrutacja",
     "/rekrutacja-2026",
+    "/rekrutacja-2026-2027",
     "/oferta",
     "/oferta-2026",
+    "/oferta-klas",
+    "/klasy",
+    "/klasy-2026",
     "/kandydaci",
     "/dla-kandydatow",
+    "/nabor",
+    "/nabor-2026",
+    "/przyjecia",
 ]
 
 JEZYK_MAP = {
@@ -110,13 +117,14 @@ def extract_profiles(html, school_name):
     soup = BeautifulSoup(html, "html.parser")
     profiles = []
 
-    # Szukaj tabel z profilami
+    # --- Parser tabelaryczny ---
+    TABLE_KEYWORDS = ["profil", "oddział", "klasa", "kierunek", "język", "rozszerzeni"]
     for table in soup.find_all("table"):
         rows = table.find_all("tr")
         if len(rows) < 2:
             continue
         headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(["th", "td"])]
-        if not any(k in " ".join(headers) for k in ["profil", "oddział", "klasa", "kierunek"]):
+        if not any(k in " ".join(headers) for k in TABLE_KEYWORDS):
             continue
 
         for row in rows[1:]:
@@ -124,54 +132,81 @@ def extract_profiles(html, school_name):
             if len(cells) < 2:
                 continue
 
-            # Heurystycznie wyciągnij symbol, profil, miejsca
             symbol = ""
             profil = ""
             miejsca = None
-            jezyki = []
 
             for cell in cells:
-                # Symbol klasy np. "1a", "1A", "1B/2"
                 if re.match(r"^[12][a-zA-Z/\d]{0,4}$", cell) and not symbol:
                     symbol = cell
-                # Liczba miejsc
                 elif re.match(r"^\d{1,3}$", cell) and 10 <= int(cell) <= 50:
                     miejsca = int(cell)
-                # Profil — dłuższy tekst
                 elif len(cell) > 5 and not profil:
                     profil = cell
 
             if not profil:
                 continue
 
-            # Wyciągnij języki z profilu
-            jezyki = extract_languages(profil)
-
-            profiles.append({
-                "symbol": symbol,
-                "nazwa_profilu": profil,
-                "jezyki": jezyki,
-                "miejsca": miejsca,
-            })
-
-    if profiles:
-        return profiles
-
-    # Fallback: szukaj list/paragrafów
-    for el in soup.find_all(["li", "p", "div"]):
-        text = el.get_text(strip=True)
-        # Wzorzec: "1a – profil matematyczno-fizyczny (30 miejsc)"
-        m = re.match(r"([12][a-zA-Z]{0,2})\s*[-–]\s*(.+?)(?:\((\d+)\s*miejsc)?$", text)
-        if m:
-            symbol = m.group(1)
-            profil = m.group(2).strip()
-            miejsca = int(m.group(3)) if m.group(3) else None
             profiles.append({
                 "symbol": symbol,
                 "nazwa_profilu": profil,
                 "jezyki": extract_languages(profil),
                 "miejsca": miejsca,
             })
+
+    if profiles:
+        return profiles
+
+    # --- Parser tekstowy (Witkacy-style i inne) ---
+    # Wzorzec A: "1a – język angielski (p. rozszerzony), język rosyjski (p. podstawowy)"
+    # Wzorzec B: "1a – profil matematyczno-fizyczny (30 miejsc)"
+    LINE_RE = re.compile(
+        r"([12][a-zA-Z]{0,3})\s*[-–—]\s*(.+?)(?:\s*\(\s*(\d{1,3})\s*miejsc[a-z]*\s*\))?\s*$"
+    )
+
+    for el in soup.find_all(["li", "p", "div", "td", "span"]):
+        # Unikaj zbyt zagnieżdżonych elementów ze zbyt dużą ilością tekstu
+        if el.find(["ul", "ol", "table"]):
+            continue
+        text = el.get_text(" ", strip=True)
+        # Odrzuć wieloliniowe bloki i zbyt długie linie
+        if "\n" in text or len(text) > 200:
+            text = text.split("\n")[0].strip()
+        if len(text) < 4 or len(text) > 200:
+            continue
+
+        m = LINE_RE.match(text)
+        if not m:
+            continue
+
+        symbol  = m.group(1)
+        raw     = m.group(2).strip()
+        miejsca = int(m.group(3)) if m.group(3) else None
+
+        # Rozwiń format Witkacy: "język X (p. rozszerzony), język Y (p. podstawowy)"
+        lang_pairs = re.findall(
+            r"język\s+(\w+(?:\s+\w+)?)\s*\(p\.\s*(rozszerzony|podstawowy)\)",
+            raw, re.IGNORECASE
+        )
+        if lang_pairs:
+            parts = []
+            for lang, poziom in lang_pairs:
+                suffix = "R" if "rozszerzony" in poziom.lower() else "P"
+                parts.append(f"{lang.strip().lower()}({suffix})")
+            profil = " + ".join(parts)
+        else:
+            profil = raw
+
+        # Odrzuć oczywiste śmieci
+        if any(garbage in profil.lower() for garbage in ["zł", "czesne", "opłat", "klika", "www"]):
+            continue
+
+        profiles.append({
+            "symbol": symbol,
+            "nazwa_profilu": profil,
+            "jezyki": extract_languages(profil + " " + raw),
+            "miejsca": miejsca,
+        })
 
     return profiles
 
@@ -187,6 +222,15 @@ def extract_languages(text):
 
 
 def main():
+    import sys
+    force_sids = set()
+    force_all  = False
+    for arg in sys.argv[1:]:
+        if arg == "--force":
+            force_all = True
+        elif arg.startswith("--sid="):
+            force_sids = {int(x) for x in arg[6:].split(",") if x.strip()}
+
     with open(SCHOOLS_JSON, encoding="utf-8") as f:
         schools = json.load(f)
 
@@ -203,7 +247,8 @@ def main():
 
     for i, s in enumerate(schools):
         sid = str(s["id"])
-        if sid in results:
+        skip_cache = force_all or (s["id"] in force_sids)
+        if sid in results and not skip_cache:
             print(f"[{i+1}/{total}] {s['id']} — pomiń (już w cache)")
             continue
 

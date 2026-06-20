@@ -16,6 +16,7 @@ Algorytm:
 import json
 import re
 import time
+import unicodedata
 from pathlib import Path
 
 try:
@@ -117,71 +118,65 @@ def batch_query(titles):
     return result
 
 
-def search_thumbnail(query_text):
+WIKI_CATEGORY = "Kategoria:Licea ogólnokształcące w Warszawie"
+STOP_WORDS_MATCH = {"liceum", "ogolnoksztalcace", "im", "nr", "warszawie", "warszawa",
+                    "w", "i", "z", "na", "gen", "plk", "dr", "sw", "bl", "ks", "prof"}
+
+
+def remove_diacritics(text):
+    return "".join(
+        c for c in unicodedata.normalize("NFD", text)
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def slug_tokens(text):
+    text = remove_diacritics(text.lower())
+    return set(re.findall(r"[a-z0-9]+", text)) - STOP_WORDS_MATCH
+
+
+def fetch_category_thumbnails():
     """
-    Wikipedia full-text search → zwraca URL miniatury pierwszego trafienia lub None.
-    Używane jako fallback gdy patron nie ma diakrytyk.
+    Pobiera tytuły + miniatury wszystkich artykułów z kategorii Warsaw liceum.
+    Zwraca dict {title_lower: thumbnail_url}.
     """
-    params = {
-        "action": "query",
-        "list": "search",
-        "srsearch": query_text,
-        "srlimit": 1,
-        "srprop": "",
-        "format": "json",
-    }
-    try:
-        r = SESSION.get(WIKI_API, params=params, timeout=10)
-        if r.status_code == 429:
-            time.sleep(30)
-            r = SESSION.get(WIKI_API, params=params, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        results = data.get("query", {}).get("search", [])
-        if not results:
-            return None
-        found_title = results[0]["title"]
-    except Exception:
-        return None
+    # Krok 1: lista artykułów z kategorii
+    titles = []
+    cont = {}
+    while True:
+        params = {
+            "action": "query",
+            "list": "categorymembers",
+            "cmtitle": WIKI_CATEGORY,
+            "cmlimit": 500,
+            "format": "json",
+        }
+        params.update(cont)
+        try:
+            r = SESSION.get(WIKI_API, params=params, timeout=15)
+            r.raise_for_status()
+            d = r.json()
+        except Exception as e:
+            print(f"  [błąd kategorii] {e}")
+            break
+        for m in d.get("query", {}).get("categorymembers", []):
+            if m["ns"] == 0:  # tylko artykuły, nie podkategorie
+                titles.append(m["title"])
+        if "continue" not in d:
+            break
+        cont = d["continue"]
 
-    # Pobierz miniaturę dla znalezionego tytułu
-    params2 = {
-        "action": "query",
-        "titles": found_title,
-        "prop": "pageimages",
-        "pithumbsize": THUMB_SIZE,
-        "format": "json",
-        "redirects": 1,
-    }
-    try:
-        r2 = SESSION.get(WIKI_API, params=params2, timeout=10)
-        r2.raise_for_status()
-        data2 = r2.json()
-        pages = data2.get("query", {}).get("pages", {})
-        for page in pages.values():
-            if page.get("pageid", -1) != -1:
-                thumb = page.get("thumbnail", {})
-                if thumb:
-                    return thumb.get("source")
-    except Exception:
-        pass
-    return None
+    print(f"  Znaleziono {len(titles)} artykułów w kategorii Wikipedia")
 
+    # Krok 2: batch pageimages dla wszystkich
+    result = {}
+    for i in range(0, len(titles), BATCH_SIZE):
+        batch = titles[i:i + BATCH_SIZE]
+        hits = batch_query(batch)
+        result.update(hits)
+        time.sleep(0.5)
 
-def make_search_query(nazwa):
-    """Zbuduj zapytanie tekstowe do Wikipedia search dla numbered liceum."""
-    m = re.match(r"([IVXLCM\d]+)\s+LICEUM", nazwa)
-    num = m.group(1) if m else None
-
-    m2 = re.search(r"\bIM\.\s+(\S+(?:\s+\S+)?)", nazwa)
-    patron_words = m2.group(1) if m2 else ""
-    # Bierz tylko pierwsze 2 słowa patrona (odcinamy sufiks "W WARSZAWIE")
-    patron_words = " ".join(w for w in patron_words.split()
-                            if w.upper() not in ("W", "WARSZAWIE"))[:30]
-
-    if num and patron_words:
-        return f"{num} liceum {patron_words} warszawa"
-    return None
+    return result
 
 
 def main():
@@ -247,27 +242,36 @@ def main():
             unresolved.append(s)
         results[str(sid)] = url
 
-    # Pass 2: Wikipedia full-text search dla unresolved numbered liceum
-    numbered = [s for s in unresolved if re.match(r"[IVXLCM\d]+\s+LICEUM", s["nazwa"]) and "IM." in s["nazwa"]]
-    print(f"\nPass 2 — search dla {len(numbered)} numerowanych liceum bez miniaturki...")
-    for s in numbered:
+    # Pass 2: fuzzy match przez kategorię Wikipedia (Warsaw liceum)
+    print(f"\nPass 2 — kategoria Wikipedia → fuzzy match {len(unresolved)} nierozwiązanych...")
+    cat_urls = fetch_category_thumbnails()
+
+    # Zbuduj indeks: token_set → (title_lower, url) dla artykułów z miniaturą
+    cat_index = []
+    for title_lower, url in cat_urls.items():
+        tokens = slug_tokens(title_lower)
+        cat_index.append((tokens, title_lower, url))
+
+    for s in unresolved:
         sid = s["id"]
-        qtext = make_search_query(s["nazwa"])
-        if not qtext:
-            continue
-        url = search_thumbnail(qtext)
-        if url:
-            results[str(sid)] = url
+        school_tokens = slug_tokens(s["nazwa"])
+        best_score, best_url = 0, None
+        for (cat_tokens, cat_title, cat_url) in cat_index:
+            score = len(school_tokens & cat_tokens)
+            if score > best_score:
+                best_score = score
+                best_url = cat_url
+
+        if best_url and best_score >= 2:
+            results[str(sid)] = best_url
             new_found += 1
-            print(f"  ✓ {sid}: {s['nazwa'][:55]}")
-            print(f"      → {url[:80]}")
+            print(f"  ✓ {sid} (score={best_score}): {s['nazwa'][:55]}")
+            print(f"      → {best_url[:80]}")
         else:
             print(f"  ✗ {sid}: {s['nazwa'][:55]}")
-        time.sleep(1.0)
 
     still_missing = [s for s in unresolved if not results.get(str(s["id"]))]
-    for s in still_missing:
-        print(f"  ✗ {s['id']}: {s['nazwa'][:55]}")
+    print(f"Bez miniaturki: {len(still_missing)}")
 
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
